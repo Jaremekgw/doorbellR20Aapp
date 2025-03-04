@@ -3,6 +3,7 @@ documentation: https://face-recognition.readthedocs.io/en/latest/?badge=latest
 """
 import os
 import sys
+import multiprocessing
 import threading
 import cv2
 import face_recognition_models
@@ -10,6 +11,8 @@ import face_recognition
 import signal
 import numpy as np
 import time
+import datetime
+
 import requests  # used for HTTP command
 from config import *
 from controller import Controller
@@ -36,6 +39,7 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
+first_detection = True
 ###############################################
 # Global state for face detection filtering
 detection_lock = threading.Lock()
@@ -94,13 +98,22 @@ def on_face_detected(recognized_name):
 
 def handle_accepted_event(recognized_name):
     doorbell = Controller(None)
+    global first_detection
     """
     This function is started in a new thread when a face detection event is accepted.
     It is responsible for taking a picture (you may integrate the actual capture logic)
     and, if the recognized face is not "Unknown", sending an HTTP command to open the door.
     """
     # Simulate taking a picture (replace with actual capture if needed)
-    print("Taking picture...")
+    # print("Taking picture...")
+
+    if first_detection:
+        first_detection = False
+        time_now = datetime.datetime.now()
+        current_time = time_now.strftime('%H:%M:%S.%f')[:-3]                
+        print(f"[{current_time}] Taking picture...")
+    else:
+        print("Taking picture...")
 
     # For example, you might save the current frame to a file:
     # cv2.imwrite("snapshot.jpg", frame)
@@ -188,7 +201,14 @@ def handle_face_detection(frame_queue):
     Runs face recognition while sending frames to the main thread for display.
     """
     global face_recognition_running
-    print("🔵 Face recognition started!")
+    global first_detection
+
+    first_run = True
+    first_detection = True
+    time_now = datetime.datetime.now()
+    current_time = time_now.strftime('%H:%M:%S.%f')[:-3]
+
+    print(f"[{current_time}] 🔵 Face recognition started!")
 
     rtsp_url = R20A_RTSP_URL
     if rtsp_url is None:
@@ -198,10 +218,34 @@ def handle_face_detection(frame_queue):
 
     cap_thread = VideoCaptureThread(rtsp_url).start()
 
+    """
+    [20:49:34.902] 🟢 Proximity ON: Detected object! Starting face recognition...
+    [20:49:34.903] 🔵 Face recognition started!
+    [20:49:37.877] First VideoCaptureThread!
+    [20:49:37.880] First frame!
+    [20:49:38.054] First face.
+
+    [21:10:43.873] 🟢 Proximity ON: Detected object! Starting face recognition...
+    [21:10:43.874] 🔵 Face recognition started!
+    [21:10:46.852] First VideoCaptureThread!    - after 3 sec
+    [21:10:46.854] First frame!
+    [21:10:47.012] First face.                  - after 158 ms
+    Accepted event for JarekG2
+    [21:10:47.644] Taking picture...
+    """
+    time_now = datetime.datetime.now()
+    current_time = time_now.strftime('%H:%M:%S.%f')[:-3]
+    print(f"[{current_time}] First VideoCaptureThread!")
+
     while not shutdown_event.is_set() and proximity_server.is_proximity_active():
         frame = cap_thread.read()
         if frame is None:
             continue
+
+        if first_run:
+            time_now = datetime.datetime.now()
+            current_time = time_now.strftime('%H:%M:%S.%f')[:-3]                
+            print(f"[{current_time}] First frame!")
 
         # Resize for faster processing
         small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
@@ -230,6 +274,12 @@ def handle_face_detection(frame_queue):
 
         small_face_locations = face_recognition.face_locations(small_rgb_frame, model='hog')
         small_face_encodings = [face_recognition.face_encodings(small_rgb_frame, [loc])[0] for loc in small_face_locations]
+
+        if first_run:
+            first_run = False
+            time_now = datetime.datetime.now()
+            current_time = time_now.strftime('%H:%M:%S.%f')[:-3]                
+            print(f"[{current_time}] First face.")
 
         face_names = []
         # Compare encodings with known faces
@@ -302,15 +352,30 @@ def start_face_recognition():
     face_recognition_thread = threading.Thread(target=handle_face_detection, args=(frame_queue,), daemon=True)
     face_recognition_thread.start()
 
+#def main(face_event):
 def main():
     print("🚀 Starting FastAPI server for proximity sensor...")
     server_thread = threading.Thread(target=proximity_server.start_fastapi_server, args=(start_face_recognition,), daemon=True)
     server_thread.start()
 
     print("🎥 Face recognition system is waiting for proximity events...")
+    #if face_event.is_set():
+    #    print("🟢 Face Recognition ENABLED")
+    #else:
+    #    print("🔴 Face Recognition DISABLED")
     
     # Start GUI in the main thread
     display_gui(frame_queue)
 
+    #while True:
+    #    if face_event.is_set():
+    #        print("🟢 Face Recognition ENABLED")
+    #    else:
+    #        print("🔴 Face Recognition DISABLED")
+    #        time.sleep(1)  # Prevent CPU overuse
+
 if __name__ == "__main__":
+    #face_event = multiprocessing.Event()
+    #face_event.clear()
+    #main(face_event)
     main()
