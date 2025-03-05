@@ -44,7 +44,7 @@ async def proximity_event():
 
         # Trigger the face recognition process
         if proximity_callback:
-            threading.Thread(target=proximity_callback, daemon=True).start()
+            threading.Thread(target=proximity_callback, args=(proximity_active, ), daemon=True).start()
 
     return {"status": "Heartbeat received"}
 
