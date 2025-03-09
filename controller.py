@@ -270,7 +270,7 @@ class Controller:
 
     def http_doorbell(self, ip, port, scheme, username, password, door_num="1"):
         # Construct the full endpoint. Example:
-        #   http://192.168.1.33:1080/fcgi/do?action=OpenDoor&UserName=relay&Password=akuvox_221&DoorNum=1
+        #   http://192.168.1.33:1080/fcgi/do?action=OpenDoor&UserName=banana&Password=aku_V21&DoorNum=1
         url = f"{scheme}://{ip}:{port}/fcgi/do"
 
         # Query parameters per the Akuvox documentation:
@@ -301,8 +301,8 @@ class Controller:
             return False
 
     def doorbell_relay(self, relay_no):
+        # Akuvox R20A has only 2 relays
         if relay_no in [1, 2]:
-            # print(f"Controller: send Open Door DoorNum:{relay_no}")
             self.http_doorbell(
                 ip=VOX_DOMAIN,
                 port=VOX_HTTP_PORT,

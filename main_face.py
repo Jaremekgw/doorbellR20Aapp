@@ -2,18 +2,15 @@
 documentation: https://face-recognition.readthedocs.io/en/latest/?badge=latest
 """
 import os
-import sys
 import multiprocessing
 import threading
 import cv2
-import face_recognition_models
 import face_recognition
 import signal
 import numpy as np
 import time
-import datetime
 
-import requests  # used for HTTP command
+from helper import *
 from config import *
 from controller import Controller
 import proximity_server  # Import FastAPI module
@@ -36,6 +33,10 @@ os.environ["OPENCV_FFMPEG_DEBUG"] = "0"
 frame_queue = Queue()
 # Create a threading event for shutdown
 shutdown_event = threading.Event()
+# Multiprocessing Event from main(), delay for next recognition until sip disconnected
+sip_event_connected = None
+# Additional flag for sip connection state
+sip_connection_active = False
 
 # Track the active face recognition thread
 face_recognition_thread = None
@@ -48,7 +49,7 @@ def signal_handler(sig, frame):
 
 signal.signal(signal.SIGINT, signal_handler)
 
-first_detection = True
+# first_detection = True
 ###############################################
 # Global state for face detection filtering
 detection_lock = threading.Lock()
@@ -108,7 +109,8 @@ def on_face_detected(recognized_name):
 def handle_accepted_event(recognized_name):
     doorbell = Controller(None)
     global face_recognition_running
-    global first_detection
+    global sip_connection_active
+    # global first_detection
     """
     This function is started in a new thread when a face detection event is accepted.
     It is responsible for taking a picture (you may integrate the actual capture logic)
@@ -117,13 +119,13 @@ def handle_accepted_event(recognized_name):
     # Simulate taking a picture (replace with actual capture if needed)
     # print("Taking picture...")
 
-    if first_detection:
-        first_detection = False
-        time_now = datetime.datetime.now()
-        current_time = time_now.strftime('%H:%M:%S.%f')[:-3]                
-        print(f"[{current_time}] Taking picture...")
-    else:
-        print("Taking picture...")
+    #if first_detection:
+    #    first_detection = False
+    #    current_time = get_current_time()
+    #    print(f"[{current_time}] Taking picture...")
+    #else:
+    #    print("Taking picture...")
+    print("Taking picture...")
 
     # For example, you might save the current frame to a file:
     # cv2.imwrite("snapshot.jpg", frame)
@@ -131,20 +133,12 @@ def handle_accepted_event(recognized_name):
     # If the recognized name is known, send an HTTP command.
     if recognized_name != "Unknown":
         doorbell.doorbell_relay(1)
-        """
-        try:
-            # Replace the URL below with your actual door-opening command.
-            url = f"http://door-controller/open?name={recognized_name}"
-            response = requests.get(url)
-            print(f"HTTP command sent to open door for {recognized_name}, response: {response.status_code}")
-        except Exception as ex:
-            print(f"Error sending HTTP command: {ex}")
-        """
     else:
         print("Face is unknown; door will not be opened.")
 
     # after the face was recognized stop working
     face_recognition_running = False
+    sip_connection_active = False
     print(f"[143] 🔴🔵 Face recognition, change running:{face_recognition_running}")
 
 ##################################################################
@@ -215,24 +209,27 @@ def handle_face_detection(set_active):
     """
     Runs face recognition while sending frames to the main thread for display.
     """
-    global first_detection
+    #global first_detection
     global face_recognition_running
+    global sip_connection_active
     # Track if face recognition is running
     proximity_active = set_active
     face_recognition_running = set_active
-    print(f"[218] 🔴🔵 Face recognition, change running:{face_recognition_running}")
+    if sip_event_connected:
+        sip_connection_active = sip_event_connected.is_set()
+    else:
+        sip_connection_active = False
+    print(f"[218] 🔵 Started  handle_face_detection() :{face_recognition_running}")
 
-    first_run = True
-    first_detection = True
-    time_now = datetime.datetime.now()
-    current_time = time_now.strftime('%H:%M:%S.%f')[:-3]
+    # first_run = True
+    #first_detection = True
+    current_time = get_current_time()
 
     print(f"[{current_time}] 🔵 Face recognition started!")
 
     rtsp_url = R20A_RTSP_URL
     if rtsp_url is None:
         print("Error: RTSP URL not set.")
-        # face_recognition_running = False
         return
 
     cap_thread = VideoCaptureThread(rtsp_url).start()
@@ -252,13 +249,19 @@ def handle_face_detection(set_active):
     Accepted event for JarekG2
     [21:10:47.644] Taking picture...
     """
-    time_now = datetime.datetime.now()
-    current_time = time_now.strftime('%H:%M:%S.%f')[:-3]
-    print(f"[{current_time}] First VideoCaptureThread!")
+    # current_time = get_current_time()
+    # print(f"[{current_time}] First VideoCaptureThread!")
 
     while not shutdown_event.is_set() and (not CONFIG_START_PROXIMITY_THD or face_recognition_running):
+        if sip_event_connected:
+            if sip_connection_active == sip_event_connected.is_set():
+                sip_connection_active = sip_event_connected.is_set()
+                print(f"[218] 🔵🔵🔵 Sip connection changed, active:{sip_connection_active}")
+
         if proximity_active != proximity_server.is_proximity_active():
             proximity_active = proximity_server.is_proximity_active()
+            #if sip_event_connected:
+            #    if sip_event_connected.is_set():
             # face recognition action is changing its state
             face_recognition_running = proximity_active
             print(f"[261] 🔴🔵 Face recognition, change running:{face_recognition_running}")
@@ -268,10 +271,9 @@ def handle_face_detection(set_active):
             if frame is None:
                 continue
 
-            if first_run:
-                time_now = datetime.datetime.now()
-                current_time = time_now.strftime('%H:%M:%S.%f')[:-3]                
-                print(f"[{current_time}] First frame!")
+            #if first_run:
+            #    current_time = get_current_time()
+            #    print(f"[{current_time}] First frame!")
 
             # Resize for faster processing
             small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
@@ -301,11 +303,10 @@ def handle_face_detection(set_active):
             small_face_locations = face_recognition.face_locations(small_rgb_frame, model='hog')
             small_face_encodings = [face_recognition.face_encodings(small_rgb_frame, [loc])[0] for loc in small_face_locations]
 
-            if first_run:
-                first_run = False
-                time_now = datetime.datetime.now()
-                current_time = time_now.strftime('%H:%M:%S.%f')[:-3]                
-                print(f"[{current_time}] First face.")
+            #if first_run:
+            #    first_run = False
+            #    current_time = get_current_time()
+            #    print(f"[{current_time}] First face.")
 
             face_names = []
             # Compare encodings with known faces
@@ -342,7 +343,6 @@ def handle_face_detection(set_active):
     print("🔴 Face recognition stopped (proximity lost).")
     cap_thread.stop()
 
-#def display_gui(frame_queue):
 def display_gui():
     """
     Runs in the main thread and displays frames.
@@ -389,8 +389,8 @@ def start_face_recognition(active):
     face_recognition_thread = threading.Thread(target=handle_face_detection, args=(active, ), daemon=True)
     face_recognition_thread.start()
 
-#def main(face_event):
-def main():
+def main(sip_event):
+    global face_recognition_enable_event
     print("🚀 Starting FastAPI server for proximity sensor...")
 
     if CONFIG_START_PROXIMITY_THD:
@@ -400,6 +400,7 @@ def main():
         threading.Thread(target=start_face_recognition, args=(False, ), daemon=True).start()
     server_thread.start()
 
+    face_recognition_enable_event = sip_event
     print("🎥 Face recognition system is waiting for proximity events...")
     #if face_event.is_set():
     #    print("🟢 Face Recognition ENABLED")
@@ -418,7 +419,6 @@ def main():
     #        time.sleep(1)  # Prevent CPU overuse
 
 if __name__ == "__main__":
-    #face_event = multiprocessing.Event()
-    #face_event.clear()
-    #main(face_event)
-    main()
+    sip_event_con = multiprocessing.Event()
+    sip_event_con.clear()
+    main(sip_event_con)

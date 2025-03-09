@@ -5,6 +5,7 @@ import datetime
 import threading
 import uvicorn
 from fastapi import FastAPI
+from helper import *
 
 app = FastAPI()
 
@@ -21,8 +22,7 @@ def monitor_proximity():
     while True:
         time.sleep(CHECK_INTERVAL)
         if proximity_active and (time.time() - last_event_time) > TIMEOUT:
-            time_now = datetime.datetime.now()
-            current_time = time_now.strftime('%H:%M:%S.%f')[:-3]
+            current_time = get_current_time()
             print(f"[{current_time}] 🔴 Proximity OFF: No heartbeat received, stopping face recognition.")
             proximity_active = False
 
@@ -37,8 +37,7 @@ async def proximity_event():
     last_event_time = time.time()  
 
     if not proximity_active:
-        time_now = datetime.datetime.now()
-        current_time = time_now.strftime('%H:%M:%S.%f')[:-3]
+        current_time = get_current_time()
         print(f"[{current_time}] 🟢 Proximity ON: Detected object! Starting face recognition...")
         proximity_active = True  
 
