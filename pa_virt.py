@@ -46,7 +46,7 @@ class PulseAudioVirtualDevices:
     def __init__(self):
         self.swich = SwitchModule()
         self.vosk = DevStruct(VIRT_DEV_VOSK_SINK_NAME)              # for Vosk STT 
-        self.piper = DevStruct(VIRT_DEV_PIPER_SINK_NAME)            # for Piper TTS
+        # self.piper = DevStruct(VIRT_DEV_PIPER_SINK_NAME)            # for Piper TTS
 
         # create and store reference indexes
         # self.vosk_module_id, self.vosk_sink_id = self.create_vosk_dev()     # for Vosk STT
@@ -118,10 +118,10 @@ class PulseAudioVirtualDevices:
 
     def cleanup(self):
         """Removes all virtual devices on exit."""
-        if self.vosk_module_id:
-            self.remove_module(self.vosk_module_id)
-        if self.piper_module_id:
-            self.remove_module(self.piper_module_id)
+        if self.vosk.module:
+            self.remove_module(self.vosk.module)
+        # if self.piper.module:
+        #     self.remove_module(self.piper.module)
 
     def get_vosk_monitor(self, sink_name):
         """Finds the monitor source of the VoskSink in PulseAudio."""

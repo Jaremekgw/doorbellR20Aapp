@@ -2,24 +2,19 @@
 
 import pjsua2 as pj
 import threading
-#from tts import generate_tts_wav
 from cleanup import cleanup_wav
 import time
-# from stt import SpeechToText  # Import the STT module
 import globals   # Import the globals module
 from controller import Controller  # Import Controller if needed
-import os
 from config import VOSK_MODEL_PATH
 from my_logger import logging, logger_thd
-# import numpy as np
-import wave
 import queue
 
 # Create a thread-safe queue for inter-thread communication
 event_queue = queue.Queue()
 
 """
-    Na razie nie stosuje logger tylko print
+    For the beginning I don't use logger, only print
     logging.info(f"Called init: MyAccount() curThd={threading.current_thread().name}")
 
     logger_thd.info(f"onCallState id={ci.id} role={ci.role} accId={ci.accId}")
@@ -28,7 +23,7 @@ event_queue = queue.Queue()
 """
 
 class SIPReceiver:
-    def __init__(self, sip_server_ip, sip_user, sip_pass, listen_port=5060):
+    def __init__(self, sip_event_connected, sip_server_ip, sip_user, sip_pass, listen_port=5060):
         self.ep = pj.Endpoint()
         self.ep.libCreate()
 
@@ -48,15 +43,9 @@ class SIPReceiver:
         acc_cfg.regConfig.registrarUri = f"sip:{sip_server_ip}"
         acc_cfg.sipConfig.authCreds.append(pj.AuthCredInfo("digest", "*", sip_user, 0, sip_pass))
 
-        # Initialize Controller with the SIP account placeholder; it will be updated later
-        #self.controller = Controller(sip_account=None)
-
-        # Create MyAccount with reference to Controller
-        self.account = MyAccount()
+        # Create MyAccount
+        self.account = MyAccount(sip_event_connected)
         self.account.create(acc_cfg)
-
-        # Update the SIP account in Controller
-        #self.controller.sip_account = self.account
 
         # Set the pj_ep reference for thread registration
         globals.pj_ep = self.ep
@@ -97,20 +86,17 @@ class SIPReceiver:
 
 class MyCall(pj.Call):
 
-    def __init__(self, acc, call_id=pj.PJSUA_INVALID_ID):
+    def __init__(self, event_connected, acc, call_id=pj.PJSUA_INVALID_ID):
         super().__init__(acc, call_id)
-        print(f" [sip:MyCall] init: ----")
         self.connected = False
+        self.event_connected = event_connected
         self.hangup_scheduled = False
         self.players = []  # List to hold multiple AudioMediaPlayer instances
-        self.tts_text = "Welcome. Your door has been rung."  # Default TTS text
-        # self.dynamic_tts_text = "Hello! Someone is at your door."  # Dynamic TTS text
         self.controller = None  # Reference to Controller instance
         self.audio_med = None
         self.audio_active = False
 
     def setController(self, controller):
-        print(f" [sip:MyCall] setController: ---- ??")
         self.controller = controller
         
     def onCallState(self, prm):
@@ -126,6 +112,9 @@ class MyCall(pj.Call):
             #if globals.stt_app:
             #    print(f"MyCall: 🔴  stop Vosk blocked.")
             #    # globals.stt_app.stop()
+
+            # object has no attribute 'event_connected'
+            self.event_connected.clear()
 
             print(f"Clean all players.")
             for player in self.players:
@@ -163,6 +152,8 @@ class MyCall(pj.Call):
                 # Check if its status indicates active media.
                 if mi.status == pj.PJSUA_CALL_MEDIA_ACTIVE:
                     try:
+                        self.event_connected.set()
+
                         # AudioMedia represents doorbell
                         self.audio_med = self.getAudioMedia(i)
 
@@ -212,15 +203,6 @@ class MyCall(pj.Call):
                     except Exception as e:
                         print(f"onCallMediaState: Error setting up TTS playback: {e}")
 
-    """     - it works
-    def delayed_play(self):
-        print(f"---  delayed play started.")
-        if globals.tts_app:
-            print(f"---  delayed play - call: speak()")
-            globals.tts_app.speak("Are you still there?  Please show your face to the camera.")
-        else:
-            print(f"---  delayed play - No object globals.tts_app.")
-    """
 
     def playbackVoskText(self, text):
         if self.controller:
@@ -250,10 +232,8 @@ class MyCall(pj.Call):
                 print(f"[WARNING] Global endpoint is not set. Cannot register thread. - curThd={threading.current_thread().name}")
                 return
 
-            if not globals.pj_ep.libIsThreadRegistered():
-                # print(f"hangupCall:  libIsThreadRegistered() - NOT - Register -----------------")
-                # probably always must be set:
-                globals.pj_ep.libRegisterThread("hangupCall")
+            #if not globals.pj_ep.libIsThreadRegistered():
+            globals.pj_ep.libRegisterThread("hangupCall")
 
             # Check if call is already terminated
             ci = self.getInfo()
@@ -285,16 +265,15 @@ class MyCall(pj.Call):
 
 
 class MyAccount(pj.Account):
-    def __init__(self):
+    def __init__(self, sip_event_connected):
         super().__init__()
         self.calls = {}
-        #self.controller = controller
-        print(f" [sip:MyAccount] Init: ---- curThd={threading.current_thread().name}")
+        self.event_connected = sip_event_connected
 
     def onIncomingCall(self, prm):
-        print(f" [sip:MyAccount] onIncomingCall: rdataInfo={prm.rdata.info}  callId={prm.callId}")
+        # print(f" [sip:MyAccount] onIncomingCall: rdataInfo={prm.rdata.info}  callId={prm.callId}")
 
-        call = MyCall(self, prm.callId)
+        call = MyCall(self.event_connected, self, prm.callId)
 
         # Initialize Controller for this call
         controller = Controller(call)
@@ -303,13 +282,9 @@ class MyAccount(pj.Account):
         call.setController(controller)
         self.calls[prm.callId] = call  # Keep reference.
 
-        if not globals.pj_ep.libIsThreadRegistered():
-            print(f"onIncomingCall:  libIsThreadRegistered() - NOT - Register -----------------")
-            globals.pj_ep.libRegisterThread("onIncommitCall")
-
         # Answer the call with 200 OK.
         call_prm = pj.CallOpParam()
         call_prm.statusCode = 200
         call.answer(call_prm)
-        print(f"Answered incoming call with ID {prm.callId}. Active calls: {len(self.calls)}")
+        # print(f"Answered incoming call with ID {prm.callId}. Active calls: {len(self.calls)}")
 

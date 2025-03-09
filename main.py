@@ -1,9 +1,9 @@
 # main.py
 
-import os
 import sys
 import signal
 import time
+import multiprocessing
 
 from sip_handler import SIPReceiver
 from pa_virt import PulseAudioVirtualDevices
@@ -14,7 +14,8 @@ from config import *
 import globals
 
 """
-    Program works:
+    Following parts are used:
+    - main_face.py for Face Recognition
     - pjsua2 for sip connection from doorbell
     - Vosk STT (Stream To Text)
     - Tokenizer for command recognition
@@ -22,6 +23,15 @@ import globals
 """
 
 def main():
+    # Create a multiprocessing Event sip connection for face recognition control
+    sip_event_connected = multiprocessing.Event()
+    sip_event_connected.clear()
+
+    print("-----------  Init Face Recognition  -------------------")
+    # Start `main_face.py` as a separate process
+    print("🚀 Starting Face Recognition Process...")
+    face_recognition_process = multiprocessing.Process(target=start_face_recognition_process, args=(sip_event_connected,))
+    face_recognition_process.start()
 
     # Create and initialize all objects we need
     globals.pulse_audio = PulseAudioVirtualDevices()
@@ -35,7 +45,7 @@ def main():
     #piper_app.start()
     globals.tts_app = piper_app
     print("-----------  Init SIPReceiver  -------------------")
-    receiver = SIPReceiver(SIP_DOMAIN, SIP_USER, SIP_PASS, LISTEN_PORT)
+    receiver = SIPReceiver(sip_event_connected, SIP_DOMAIN, SIP_USER, SIP_PASS, LISTEN_PORT)
 
     print("SIP Receiver is running. Press Ctrl+C or send SIGTERM to quit.")
 
@@ -47,6 +57,15 @@ def main():
         do_shutdown._has_run = True
 
         print("Shutting down gracefully...")
+
+        # Disable face recognition
+        sip_event_connected.clear()
+        time.sleep(1)  # Give time for shutdown
+
+        # Terminate the face recognition process
+        face_recognition_process.terminate()
+        face_recognition_process.join()
+
         # Shut down SIP
         receiver.shutdown()
         # Shut down STT
@@ -79,6 +98,14 @@ def main():
     finally:
         # Ensure all objects are shut down regardless of how we exit
         do_shutdown()
+
+def start_face_recognition_process(multiprocess_event):
+    """
+    Starts `main_face.py` as a separate process.
+    """
+    from main_face import main
+
+    main(multiprocess_event)
 
 if __name__ == "__main__":
     main()
