@@ -19,6 +19,9 @@ VOX_HTTP_PORT = os.getenv("VOX_HTTP_PORT", "1088")
 VOX_RELAY_USER = os.getenv("VOX_RELAY_USER", "user_rel")
 VOX_RELAY_PASS = os.getenv("VOX_RELAY_PASS", "abcd_rel")
 
+# system folders
+SYS_LOG_PATH = "log/"
+SYS_FACES_PATH = "storage/"
 
 LANGUAGE = "PL"
 # LANGUAGE = "EN"

@@ -15,12 +15,15 @@ from config import *
 from controller import Controller
 import proximity_server  # Import FastAPI module
 from queue import Queue
+from collections import deque
 
 # True - proximity starts thread start_face_recognition() for every event   Idle CPU = < 1%
 # False - proximity set activity inside thread start_face_recognition()     Idle CPU = 13-14%
 CONFIG_START_PROXIMITY_THD = False
 # Allow display screen and show frames
 CONFIG_ALLOW_DISPLAY_GUI = False
+# Pause time after face was recognized to start next detection
+CONFIG_PAUSE_TIME = 10
 
 # Optionally, set QT_QPA_PLATFORM to use xcb (for X11) or offscreen to bypass Wayland issues.
 os.environ["QT_QPA_PLATFORM"] = "xcb"
@@ -60,17 +63,21 @@ last_event_time = None
 pause_until = 0
 ###############################################
 
-def on_face_detected(recognized_name):
+# Buffer for saving previous frames
+frame_buffer = deque(maxlen=30)  # Store last 30 frames
+
+def on_face_detected(frame, recognized_name):
     """
     This function is called each time a face is detected.
     It applies a simple filter so that an event is only accepted
     if the same recognized name is received consecutively 5 times
-    within 1400 milliseconds. If no event occurs for 500ms, the counter resets.
-    Once an event is accepted, the counter is cleared and the function pauses for 5 seconds.
+    within 1200 milliseconds. If no event occurs for 500ms, the counter resets.
+    Once an event is accepted, the counter is cleared and the function pauses for 'CONFIG_PAUSE_TIME' seconds.
     After that, a new thread is spawned to handle the accepted event (e.g. capturing a picture
     and sending an HTTP command if the recognized face is known).
     """
     global last_face_name, detection_count, first_detection_time, last_event_time, pause_until
+    global frame_buffer
 
     current_time = time.time()
     with detection_lock:
@@ -94,15 +101,17 @@ def on_face_detected(recognized_name):
 
         last_event_time = current_time
 
-        # Check if we have 5 consecutive events within 1.4 seconds.
-        if detection_count >= 5 and (current_time - first_detection_time) <= 1.4:
+        # Store frame in buffer
+        frame_buffer.append(frame.copy())
+
+        # Check if we have 5 consecutive events within 1.2 seconds.
+        if detection_count >= 5 and (current_time - first_detection_time) <= 1.2:
             print(f"Accepted event for {recognized_name}")
             # Clear the counter and set a pause of 5 seconds.
             detection_count = 0
             first_detection_time = None
             last_event_time = None
-            pause_until = current_time + 5  # 5-second pause
-
+            pause_until = current_time + CONFIG_PAUSE_TIME  # x-seconds pause
             # Start a new thread to handle the accepted event.
             threading.Thread(target=handle_accepted_event, args=(recognized_name,), daemon=True).start()
 
@@ -110,6 +119,7 @@ def handle_accepted_event(recognized_name):
     doorbell = Controller(None)
     global face_recognition_running
     global sip_connection_active
+    global frame_buffer
     # global first_detection
     """
     This function is started in a new thread when a face detection event is accepted.
@@ -135,6 +145,12 @@ def handle_accepted_event(recognized_name):
         doorbell.doorbell_relay(1)
     else:
         print("Face is unknown; door will not be opened.")
+
+    file_name = f""
+    print("Face detected! Saving frames...")
+    face_detected = True
+    save_video(list(frame_buffer), recognized_name)
+    frame_buffer.clear()  # Clear buffer after saving
 
     # after the face was recognized stop working
     face_recognition_running = False
@@ -325,7 +341,7 @@ def handle_face_detection(set_active):
                         name = "Error"
                 face_names.append(name)
                 # Invoke the filtering callback for each detected face.
-                on_face_detected(name)
+                on_face_detected(frame, name)
 
                 #print(f"Detected face: {name}")
                 #if name != "Unknown":
@@ -388,6 +404,23 @@ def start_face_recognition(active):
     # face_recognition_thread = threading.Thread(target=handle_face_detection, args=(frame_queue,), daemon=True)
     face_recognition_thread = threading.Thread(target=handle_face_detection, args=(active, ), daemon=True)
     face_recognition_thread.start()
+
+
+def save_video(frames, recognized_name="Unknown", fps=20):
+    """ Saves the stored frames into a video file """
+    if not frames:
+        return
+    
+    date_string = get_current_date_time()
+    output_path = SYS_FACES_PATH + date_string + "_" + recognized_name + ".avi"
+    height, width, _ = frames[0].shape
+    fourcc = cv2.VideoWriter_fourcc(*"XVID")
+    out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    
+    for frame in frames:
+        out.write(frame)
+    
+    out.release()
 
 def main(sip_event):
     global face_recognition_enable_event
