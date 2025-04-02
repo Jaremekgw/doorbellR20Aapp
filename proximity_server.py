@@ -4,10 +4,14 @@ import time
 import datetime
 import threading
 import uvicorn
+
 from fastapi import FastAPI
 from helper import *
+from logger_config import get_logger
 
 app = FastAPI()
+
+logger = get_logger(__name__)
 
 # Global state tracking
 last_event_time = 0  
@@ -22,8 +26,9 @@ def monitor_proximity():
     while True:
         time.sleep(CHECK_INTERVAL)
         if proximity_active and (time.time() - last_event_time) > TIMEOUT:
-            current_time = get_current_time()
-            print(f"[{current_time}] 🔴 Proximity OFF: No heartbeat received, stopping face recognition.")
+            # current_time = get_current_time()
+            # print(f"[{current_time}] 🔴 Proximity OFF: No heartbeat received, stopping face recognition.")
+            logger.info(f"🔴 Proximity OFF: No heartbeat received, stopping face recognition.")
             proximity_active = False
 
 # Start the background monitoring thread
@@ -37,8 +42,7 @@ async def proximity_event():
     last_event_time = time.time()  
 
     if not proximity_active:
-        current_time = get_current_time()
-        print(f"[{current_time}] 🟢 Proximity ON: Detected object! Starting face recognition...")
+        logger.info(f"🟢 Proximity ON: Detected object! Starting face recognition...")
         proximity_active = True  
 
         # Trigger the face recognition process
