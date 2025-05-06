@@ -56,9 +56,11 @@ face_recognition_thread = None
 # Track if face recognition is running
 face_recognition_running = False
 
+
 def signal_handler(sig, frame):
     logger.info("Signal received, shutting down gracefully...")
     shutdown_event.set()
+
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -75,6 +77,7 @@ pause_until = 0
 
 # Buffer for saving previous frames
 frame_buffer = deque(maxlen=30)  # Store last 30 frames
+
 
 def on_face_detected(frame, recognized_name):
     """
@@ -122,7 +125,9 @@ def on_face_detected(frame, recognized_name):
             last_event_time = None
             pause_until = current_time + CONFIG_PAUSE_TIME  # x-seconds pause
             # Start a new thread to handle the accepted event.
-            threading.Thread(target=handle_accepted_event, args=(recognized_name,), daemon=True).start()
+            threading.Thread(target=handle_accepted_event, args=(
+                recognized_name,), daemon=True).start()
+
 
 def handle_accepted_event(recognized_name):
     doorbell = Controller(None)
@@ -146,18 +151,21 @@ def handle_accepted_event(recognized_name):
     # after finishing this event clear flags
     face_recognition_running = False
     sip_connection_active = False
- 
+
 ##################################################################
 # The remainder of the code (video capture, face detection, etc.) remains as before.
 ##################################################################
+
 
 # Load known face encodings and names from the "known_faces" directory.
 known_face_encodings = []
 known_face_names = []
 
+
 def load_known_faces(known_faces_dir="known_faces"):
     if not os.path.isdir(known_faces_dir):
-        logger.error(f"Directory '{known_faces_dir}' not found. No known faces loaded.")
+        logger.error(
+            f"Directory '{known_faces_dir}' not found. No known faces loaded.")
         return
 
     for filename in os.listdir(known_faces_dir):
@@ -175,7 +183,9 @@ def load_known_faces(known_faces_dir="known_faces"):
         else:
             logger.warning(f"No face found in {filename}")
 
+
 load_known_faces()  # Load known faces at startup
+
 
 class VideoCaptureThread:
     def __init__(self, src):
@@ -211,6 +221,8 @@ class VideoCaptureThread:
         self.cap.release()
 
 # def handle_face_detection(frame_queue):
+
+
 def handle_face_detection(set_active):
     """
     Runs face recognition while sending frames to the main thread for display.
@@ -228,7 +240,8 @@ def handle_face_detection(set_active):
     else:
         sip_connection_active = False
 
-    logger.info(f"[231] 🔵 Started  handle_face_detection() face_recognition_running={face_recognition_running}")
+    logger.info(
+        f"[231] 🔵 Started  handle_face_detection() face_recognition_running={face_recognition_running}")
 
     rtsp_url = R20A_RTSP_URL
     if rtsp_url is None:
@@ -242,9 +255,11 @@ def handle_face_detection(set_active):
             if sip_connection_active == sip_event_connected.is_set():
                 # TODO: check this condition and equation
                 sip_connection_active = sip_event_connected.is_set()
-                logger.debug(f"[283] 🔵🔵🔵 Sip connection changed, --equal-- active:{sip_connection_active}")
+                logger.debug(
+                    f"[283] 🔵🔵🔵 Sip connection changed, --equal-- active:{sip_connection_active}")
             else:
-                logger.debug(f"[285] 🔵🔵🔵 Sip connection changed, --Not Equal-- active:{sip_connection_active}")
+                logger.debug(
+                    f"[285] 🔵🔵🔵 Sip connection changed, --Not Equal-- active:{sip_connection_active}")
 
         if proximity_active != proximity_server.is_proximity_active():
             proximity_active = proximity_server.is_proximity_active()
@@ -282,8 +297,10 @@ def handle_face_detection(set_active):
                     small_face_encodings.append(None)
             """
 
-            small_face_locations = face_recognition.face_locations(small_rgb_frame, model='hog')
-            small_face_encodings = [face_recognition.face_encodings(small_rgb_frame, [loc])[0] for loc in small_face_locations]
+            small_face_locations = face_recognition.face_locations(
+                small_rgb_frame, model='hog')
+            small_face_encodings = [face_recognition.face_encodings(
+                small_rgb_frame, [loc])[0] for loc in small_face_locations]
 
             """
             count_faces = len(small_face_locations)
@@ -313,7 +330,8 @@ def handle_face_detection(set_active):
                     name = "Unknown"
                 else:
                     try:
-                        matches = face_recognition.compare_faces(known_face_encodings, encoding, tolerance=0.6)
+                        matches = face_recognition.compare_faces(
+                            known_face_encodings, encoding, tolerance=0.6)
                         name = "Unknown"
                         if True in matches:
                             first_match_index = matches.index(True)
@@ -339,6 +357,7 @@ def handle_face_detection(set_active):
         # logging.shutdown()    # alternative
     cap_thread.stop()
 
+
 def display_gui():
     """
     Runs in the main thread and displays frames.
@@ -355,9 +374,12 @@ def display_gui():
             for (face_location, name) in zip(face_locations, face_names):
                 top, right, bottom, left = face_location
                 top, right, bottom, left = top * 4, right * 4, bottom * 4, left * 4
-                cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-                cv2.rectangle(frame, (left, bottom - 20), (right, bottom), (0, 255, 0), cv2.FILLED)
-                cv2.putText(frame, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 0), 1)
+                cv2.rectangle(frame, (left, top),
+                              (right, bottom), (0, 255, 0), 2)
+                cv2.rectangle(frame, (left, bottom - 20),
+                              (right, bottom), (0, 255, 0), cv2.FILLED)
+                cv2.putText(frame, name, (left + 6, bottom - 6),
+                            cv2.FONT_HERSHEY_DUPLEX, 0.5, (0, 0, 0), 1)
 
             cv2.imshow('Face Recognition', frame)
         else:
@@ -369,6 +391,7 @@ def display_gui():
 
     cv2.destroyAllWindows()
 
+
 def start_face_recognition(active):
     """
     Wrapper function to restart face recognition properly.
@@ -376,13 +399,15 @@ def start_face_recognition(active):
     global face_recognition_thread
 
     if face_recognition_thread and face_recognition_thread.is_alive():
-        logger.warning("⚠️ Stopping old face recognition thread before restarting...")
+        logger.warning(
+            "⚠️ Stopping old face recognition thread before restarting...")
         shutdown_event.set()
         face_recognition_thread.join()
         shutdown_event.clear()
 
     # face_recognition_thread = threading.Thread(target=handle_face_detection, args=(frame_queue,), daemon=True)
-    face_recognition_thread = threading.Thread(target=handle_face_detection, args=(active, ), daemon=True)
+    face_recognition_thread = threading.Thread(
+        target=handle_face_detection, args=(active, ), daemon=True)
     face_recognition_thread.start()
 
 
@@ -390,52 +415,58 @@ def save_video(frames, recognized_name="Unknown", fps=20):
     """ Saves the stored frames into a video file """
     if not frames:
         return
-    
+
     date_string = get_current_date_time()
     output_path = SYS_FACES_PATH + date_string + "_" + recognized_name + ".avi"
     height, width, _ = frames[0].shape
     fourcc = cv2.VideoWriter_fourcc(*"XVID")
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-    
+
     for frame in frames:
         out.write(frame)
-    
+
     out.release()
+
 
 def main(sip_event):
     global face_recognition_enable_event
     logger.info("🚀 Starting FastAPI server for proximity sensor...")
 
     if CONFIG_START_PROXIMITY_THD:
-        server_thread = threading.Thread(target=proximity_server.start_fastapi_server, args=(start_face_recognition,), daemon=True)
+        server_thread = threading.Thread(target=proximity_server.start_fastapi_server, args=(
+            start_face_recognition,), daemon=True)
     else:
-        server_thread = threading.Thread(target=proximity_server.start_fastapi_server, args=(None,), daemon=True)
-        threading.Thread(target=start_face_recognition, args=(False, ), daemon=True).start()
+        server_thread = threading.Thread(
+            target=proximity_server.start_fastapi_server, args=(None,), daemon=True)
+        threading.Thread(target=start_face_recognition,
+                         args=(False, ), daemon=True).start()
     server_thread.start()
 
     face_recognition_enable_event = sip_event
     print("🎥 Face recognition system is waiting for proximity events...")
-    #if face_event.is_set():
+    # if face_event.is_set():
     #    print("🟢 Face Recognition ENABLED")
-    #else:
+    # else:
     #    print("🔴 Face Recognition DISABLED")
-    
+
     # Start GUI in the main thread
     # display_gui(frame_queue)
     display_gui()
 
-    #while True:
+    # while True:
     #    if face_event.is_set():
     #        print("🟢 Face Recognition ENABLED")
     #    else:
     #        print("🔴 Face Recognition DISABLED")
     #        time.sleep(1)  # Prevent CPU overuse
 
+
 if __name__ == "__main__":
     sip_event_con = multiprocessing.Event()
     sip_event_con.clear()
 
     # Set up the QueueListener in the main process
-    _listener = setup_queue_listener(log_queue, logging_file_path='log/face.log')
+    _listener = setup_queue_listener(
+        log_queue, logging_file_path='log/face.log')
 
     main(sip_event_con)

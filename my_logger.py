@@ -3,14 +3,14 @@ import threading
 import sys
 
 # Configure logging
-     # logging.DEBUG  if INFO you won't see DEBUG
+# logging.DEBUG  if INFO you won't see DEBUG
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] [%(filename)s+%(lineno)d] %(message)s',
-    #handlers=[
+    # handlers=[
     #    logging.FileHandler("log/doorbell_app.log"),
     #    logging.StreamHandler(sys.stdout)
-    #]
+    # ]
 )
 """
 inne formaty:

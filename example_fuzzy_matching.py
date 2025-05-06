@@ -18,14 +18,13 @@ from rapidfuzz import process
 
 """
 
-TURN_ON_VARIANTS = ["załącz lampę", "włącz lampę", "zapal lampę", 
+TURN_ON_VARIANTS = ["załącz lampę", "włącz lampę", "zapal lampę",
                     "załącz światło", "włącz światło", "zapal światło",
                     "załącz lampy",  "włącz lampy",  "zapal lampy"]
+
 
 def get_best_match(command: str, variants: list, threshold=80):
     best_match, score, _ = process.extractOne(command, variants)
     if score >= threshold:
         return best_match
     return None
-
-

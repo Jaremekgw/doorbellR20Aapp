@@ -22,6 +22,7 @@ import globals
     - Piper TTS (Text To Stream)
 """
 
+
 def main():
     # Create a multiprocessing Event sip connection for face recognition control
     sip_event_connected = multiprocessing.Event()
@@ -30,7 +31,8 @@ def main():
     print("-----------  Init Face Recognition  -------------------")
     # Start `main_face.py` as a separate process
     print("🚀 Starting Face Recognition Process...")
-    face_recognition_process = multiprocessing.Process(target=start_face_recognition_process, args=(sip_event_connected,))
+    face_recognition_process = multiprocessing.Process(
+        target=start_face_recognition_process, args=(sip_event_connected,))
     face_recognition_process.start()
 
     # Create and initialize all objects we need
@@ -40,12 +42,13 @@ def main():
     print("-----------  Start VoskSTT  -------------------")
     vosk_app.start()  # move to sip_handler after connected (some issue after moving it)
     globals.stt_app = vosk_app
-    #print("-----------  Init PiperTTS  -------------------")
+    # print("-----------  Init PiperTTS  -------------------")
     piper_app = PiperTTS(globals.pulse_audio, PIPER_MODEL_PATH)
-    #piper_app.start()
+    # piper_app.start()
     globals.tts_app = piper_app
     print("-----------  Init SIPReceiver  -------------------")
-    receiver = SIPReceiver(sip_event_connected, SIP_DOMAIN, SIP_USER, SIP_PASS, LISTEN_PORT)
+    receiver = SIPReceiver(sip_event_connected, SIP_DOMAIN,
+                           SIP_USER, SIP_PASS, LISTEN_PORT)
 
     print("SIP Receiver is running. Press Ctrl+C or send SIGTERM to quit.")
 
@@ -71,7 +74,7 @@ def main():
         # Shut down STT
         vosk_app.stop()
         # Shut down TTS
-        #piper_app.stop()
+        # piper_app.stop()
         # Clean up PulseAudio Virtual Devices
         if globals.pulse_audio:
             globals.pulse_audio.cleanup()
@@ -99,6 +102,7 @@ def main():
         # Ensure all objects are shut down regardless of how we exit
         do_shutdown()
 
+
 def start_face_recognition_process(multiprocess_event):
     """
     Starts `main_face.py` as a separate process.
@@ -107,6 +111,6 @@ def start_face_recognition_process(multiprocess_event):
 
     main(multiprocess_event)
 
+
 if __name__ == "__main__":
     main()
-

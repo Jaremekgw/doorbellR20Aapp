@@ -8,25 +8,30 @@ import queue
 
 """
 
+
 def cpu_bound_task():
     count = 0
     for i in range(10**7):
         count += 1
+
 
 def thd1_task():
     for i in range(5):
         print(f"Thread 1 - Hello from the thread.")
         time.sleep(0.2)
 
+
 def thd2_task(name, count):
     for i in range(count):
         print(f"{name} - says: {i}.")
         time.sleep(0.5)
 
+
 def infinity_thread():
     while True:
         print("                               daemon still running...")
         time.sleep(3)
+
 
 def producer(queue):
     for i in range(8):
@@ -36,6 +41,7 @@ def producer(queue):
         time.sleep(0.2)
     queue.put(None)     # Signal to consumer that production is empty
 
+
 def consumer(queue):
     while True:
         item = queue.get()
@@ -43,6 +49,7 @@ def consumer(queue):
             break
         print(f" -->> Consuming {item}")
         time.sleep(0.5)
+
 
 def worker(event):
     print(f"Worker waiting for event to start.")
@@ -74,7 +81,6 @@ def main():
     th2.join()
     print(f"Main - ({th2_name}) finished.")
 
-
     print(f"----------  3.   -----------")
     # 3. daemon
     daemon_thread = threading.Thread(target=infinity_thread)
@@ -82,7 +88,6 @@ def main():
     dmon_name = daemon_thread.name
     daemon_thread.start()
     print(f"Daemon thread ({dmon_name}) started.")
-
 
     print(f"----------  4.   -----------")
     # queue
@@ -98,11 +103,11 @@ def main():
     consumer_thd.join()
     print(f"Main - (producer={prod_name}, consumer={cons_name}) finished.")
 
-
     print(f"----------  5.   -----------")
     # threading event
     event = threading.Event()
-    th_worker = threading.Thread(target=worker, args=(event,))      # thread prepared but with event.wait()
+    # thread prepared but with event.wait()
+    th_worker = threading.Thread(target=worker, args=(event,))
     thw_name = th_worker.name
     print(f"Main - ({thw_name}) prepared to start.")
     th_worker.start()
@@ -111,7 +116,6 @@ def main():
     event.set()         # Start the worker Thread
     th_worker.join()
     print(f"Main - ({thw_name}) finished.")
-
 
     print(f"----------  6.   -----------")
     # multiprocessing
@@ -123,7 +127,8 @@ def main():
     for thread in threads:
         thread.join()
 
-    print(f"Elapsed time with multithreading: {time.time() - time_start:.3f} seconds")
+    print(
+        f"Elapsed time with multithreading: {time.time() - time_start:.3f} seconds")
 
     time_start = time.time()
     processes = [Process(target=cpu_bound_task) for _ in range(4)]
@@ -134,9 +139,8 @@ def main():
     for process in processes:
         process.join()
 
-    print(f"Elapsed time with multiprocessing: {time.time() - time_start:.3f} seconds")
-
-
+    print(
+        f"Elapsed time with multiprocessing: {time.time() - time_start:.3f} seconds")
 
 
 if __name__ == "__main__":

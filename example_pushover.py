@@ -11,6 +11,7 @@ from config import *
       - https://gotify.net/	(free)
 """
 
+
 def send_message(user_key, app_token, message):
     url = "https://api.pushover.net/1/messages.json"
     data = {
@@ -48,5 +49,6 @@ if __name__ == "__main__":
 
     # send message with picture
     IMAGE_PATH = "path_to_your_image.jpg"
-    resp = send_message_with_image(PUSH_USER_KEY, PUSH_API_TOKEN, MESSAGE, IMAGE_PATH)
+    resp = send_message_with_image(
+        PUSH_USER_KEY, PUSH_API_TOKEN, MESSAGE, IMAGE_PATH)
     print(resp.text)

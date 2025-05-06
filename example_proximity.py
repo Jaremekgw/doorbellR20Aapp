@@ -4,10 +4,11 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
+
 @app.route('/proximity', methods=['GET', 'POST'])
 def proximity_event():
     # t = time.localtime()
-    # ms = time.time_ns() 
+    # ms = time.time_ns()
     # current_time = time.strftime("%H:%M:%S", t)
 
     time_now = datetime.datetime.now()
@@ -17,6 +18,6 @@ def proximity_event():
     # Here you can trigger face recognition
     return "OK", 200
 
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-

@@ -16,6 +16,7 @@ LOG_TO_CONSOLE = False
 # following levels from lower to higher: (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 default_log_level = logging.DEBUG
 
+
 def setup_queue_listener(log_queue, logging_file_path='log/doorbell.log', log_level=default_log_level):
     """Configures a QueueListener with desired handlers.
 
@@ -37,7 +38,8 @@ def setup_queue_listener(log_queue, logging_file_path='log/doorbell.log', log_le
     # Always add file handler
     file_handler = logging.FileHandler(logging_file_path)   # 'app.log'
     file_handler.setFormatter(
-        logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
+        logging.Formatter(
+            '[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
     )
     file_handler.setLevel(log_level)
     handlers.append(file_handler)
@@ -58,11 +60,12 @@ def setup_queue_listener(log_queue, logging_file_path='log/doorbell.log', log_le
     _listener.start()
     return _listener
 
+
 def get_logger(name):
     """Creates a logger that sends log records to the shared queue."""
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)
-    
+
     # Avoid adding duplicate handlers
     if not any(isinstance(h, logging.handlers.QueueHandler) for h in logger.handlers):
         queue_handler = logging.handlers.QueueHandler(log_queue)

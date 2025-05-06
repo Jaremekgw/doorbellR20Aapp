@@ -3,6 +3,7 @@
 import RPi.GPIO as GPIO
 import time
 
+
 class LampController:
     def __init__(self, pin):
         """
@@ -35,4 +36,3 @@ class LampController:
         Clean up GPIO settings.
         """
         GPIO.cleanup()
-

@@ -14,10 +14,11 @@ import requests
 
 """
 
+
 def open_door(ip, port, scheme, username, password, door_num="1"):
     """
     Open the specified door/relay using the Akuvox fcgi/do endpoint.
-    
+
     :param ip: IP address of the door intercom (e.g., "192.168.178.133")
     :param port: Port for HTTP or HTTPS (e.g., 1088 for HTTP, 443 for HTTPS)
     :param scheme: "http" or "https"
@@ -61,6 +62,7 @@ def open_door(ip, port, scheme, username, password, door_num="1"):
         print("Error during request:", e)
         return False
 
+
 if __name__ == "__main__":
     # Example usage:
     # 1) Plain HTTP (port 1088)
@@ -82,10 +84,3 @@ if __name__ == "__main__":
     #     password="akuvox_221",
     #     door_num="1"
     # )
-
-
-
-
-
-
-

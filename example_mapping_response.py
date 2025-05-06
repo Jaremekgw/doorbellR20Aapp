@@ -18,6 +18,7 @@ TURN_ON_CONFIRMATION = {
     "zapal": "zapalono"
 }
 
+
 def reasoning_pl(self, command: str):
     # 1. Normalize input
     command_lower = command.lower()
@@ -26,7 +27,8 @@ def reasoning_pl(self, command: str):
     if any(verb in command_lower for verb in TURN_ON_SYNONYMS) and \
        any(obj in command_lower for obj in LIGHT_SYNONYMS):
         # Identify which verb the user used (pick the first match)
-        used_verb = next(verb for verb in TURN_ON_SYNONYMS if verb in command_lower)
+        used_verb = next(
+            verb for verb in TURN_ON_SYNONYMS if verb in command_lower)
         # Convert to confirmation form, with a fallback if something unexpected
         confirmation_verb = TURN_ON_CONFIRMATION.get(used_verb, "włączono")
 
@@ -47,5 +49,3 @@ def reasoning_pl(self, command: str):
 
     # 4. Otherwise, unrecognized
     self.play_response("Przepraszam, proszę mówić wyraźnie, jednym zdaniem.")
-
-

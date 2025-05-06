@@ -5,12 +5,13 @@ from vosk import Model, KaldiRecognizer
 from config import VOSK_MODEL_PATH
 import json
 
+
 class VoskSTT:
     def __init__(self, model_path, pa_manager):
         # get access to Virtual Pulse Audio Devices
         self.pa_manager = pa_manager
 
-        # Create model from the link to file 
+        # Create model from the link to file
         self.model = Model(model_path)
         # Initialize the recognizer with the given model and sample rate
         self.recognizer = KaldiRecognizer(self.model, 16000)
@@ -48,10 +49,11 @@ class VoskSTT:
                                   rate=16000,
                                   input=True,
                                   frames_per_buffer=8000,
-                                  input_device_index=hw_id) # connect to default
+                                  input_device_index=hw_id)  # connect to default
 
         # check if interface is available and redirect to sink.monitor(source)
-        result = self.pa_manager.redirect_cap_source_output(self.pa_manager.vosk.sink_id)
+        result = self.pa_manager.redirect_cap_source_output(
+            self.pa_manager.vosk.sink_id)
         if not result:
             print("❌ Could not find VOSK(source-output) stream in PulseAudio!")
             return
@@ -73,13 +75,13 @@ class VoskSTT:
                         # print(f"Recognized Text: {result['text']}")
                         if self.callback:
                             self.callback(result["text"])
-                #else:
+                # else:
                 #    partial = self.recognizer.PartialResult()
 
             except Exception as e:
                 print(f"Error reading stream: {e}")
                 continue
- 
+
     def stop(self):
         """Stops the STT processing."""
         print(f"VoskSST: stop  running={self.running}")

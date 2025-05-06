@@ -8,11 +8,12 @@ import logging
 from config import *
 from synonims import *
 
-    # ✅  🎙️ 🧹  ⏳ ⚠️ ❌ 🔵 🔴 🔊 ⚠️ Warning 📝  
+# ✅  🎙️ 🧹  ⏳ ⚠️ ❌ 🔵 🔴 🔊 ⚠️ Warning 📝
 
 # You can integrate hardware control (e.g., GPIO pins) by uncommenting
 # and implementing the 'LampController' class from prepared 'hardware_control.py' module:
-## from hardware_control import LampController
+# from hardware_control import LampController
+
 
 class Lamp:
     def __init__(self, on=False):
@@ -31,7 +32,6 @@ class Lamp:
         else:
             self.lamp_on = False
         return True
-
 
 
 class Controller:
@@ -67,7 +67,6 @@ class Controller:
             print(" ❌ Controller: ERROR: No language defined")
             return
         self.play_response(response_text)
-            
 
     def onNewCallX(self, call):
         print(f"Controller stores call handler.")
@@ -158,16 +157,20 @@ class Controller:
 
             match self.question_id:
                 case 1:
-                    self.push_message(self.message + " - kurier zostawił paczkę.")
-                    self.open_door("Obiekt monitorowany, informacja przkazana, proszę wejść i zostawić paczkę pod drzwiami.", 6)
+                    self.push_message(
+                        self.message + " - kurier zostawił paczkę.")
+                    self.open_door(
+                        "Obiekt monitorowany, informacja przkazana, proszę wejść i zostawić paczkę pod drzwiami.", 6)
 
         # command "nie"
         elif self.question_id > 0 and command_tokens & NEGATIVE_SYNS:
 
             match self.question_id:
                 case 1:
-                    self.push_message(self.message + " - kurier nie zostawił paczki.")
-                    self.hangup("Jeżeli nie, to proszę o kontakt na komórkę.", 6)
+                    self.push_message(
+                        self.message + " - kurier nie zostawił paczki.")
+                    self.hangup(
+                        "Jeżeli nie, to proszę o kontakt na komórkę.", 6)
 
         # command "przyniosłem paczkę"
         elif command_tokens & BRING_SYNS and command_tokens & PACK_SYNS:
@@ -182,29 +185,26 @@ class Controller:
         # command "goście na imprezę"
         elif command_tokens & GUESTS_SYNS and command_tokens & ON_SYNS and command_tokens & PARTY_SYNS:
             self.push_message(self.message + " - goście na imprezę.")
-            self.open_door("Przyjęcie w ogrodzie, proszę przejść na tył domu, czekamy.", 5)
+            self.open_door(
+                "Przyjęcie w ogrodzie, proszę przejść na tył domu, czekamy.", 5)
 
         # command "my z wizytą"
         elif (command_tokens & VIS1_SYNS or command_tokens & VIS2_SYNS) and command_tokens & VISIT_SYNS:
             self.push_message(self.message + " - ktoś z wizytą.")
             self.open_door("Zapraszam, zaraz ktoś podejdzie.", 3)
 
-
         # command "mam do sprzedania"
         elif command_tokens & BRING_SYNS and command_tokens & TO_SYNS and command_tokens & SELL_SYNS:
             self.hangup("Dziękuję, ale nie jestem zainteresowana.", 5)
-
 
         # command "koniec"
         elif command_tokens & HANGUP_SYNS:
             self.hangup("Do widzenia.", 3)
         else:
 
-            self.play_response("Przepraszam, proszę mówić wyraźnie, jednym zdaniem.")
+            self.play_response(
+                "Przepraszam, proszę mówić wyraźnie, jednym zdaniem.")
         pass
-
-
-
 
     def reasoning_en(self, command):
         if command.lower() in ["turn on the lamp", "switch on the lamp", "lamp on"]:
@@ -222,7 +222,7 @@ class Controller:
         # Execute the task (e.g., switch on the lamp)
         # self.lamp.turn_on()
         # For demonstration, we'll simulate the task
-        #print("Lamp turned on.")  # Replace with actual hardware control
+        # print("Lamp turned on.")  # Replace with actual hardware control
 
         # Generate and play TTS response
         response_text = "The lamp has been turned on."
@@ -236,7 +236,7 @@ class Controller:
         # Execute the task (e.g., switch off the lamp)
         # self.lamp.turn_off()
         # For demonstration, we'll simulate the task
-        #print("Lamp turned off.")  # Replace with actual hardware control
+        # print("Lamp turned off.")  # Replace with actual hardware control
 
         # Generate and play TTS response
         response_text = "The lamp has been turned off."
@@ -249,6 +249,7 @@ class Controller:
         response_text = "I'm sorry, I didn't understand that command."
         self.play_tts_response(response_text)
         """
+
     def hangup(self, message, delay):
         self.play_response(message)
         open_thd = threading.Timer(delay, self.delayed_hangup)
@@ -256,7 +257,6 @@ class Controller:
 
     def delayed_hangup(self):
         self.sip_call.hangupCall()
-
 
     def open_door(self, message, delay):
         self.play_response(message)
@@ -313,7 +313,7 @@ class Controller:
             )
         else:
             print(f" ❌ Controller: ERROR: Wrong relay number={relay_no}")
-            
+
     def play_response(self, response_text):
         # Play the TTS response using SIP handler
         if not self.connected:
@@ -321,14 +321,13 @@ class Controller:
             return
         if self.sip_call:
             self.sip_call.capturePiperText(response_text)
-            #print(f"Controller: Play audio for text={response_text}")
-            #play_thd = threading.Thread(self.sip_call.play_tts, args=(response_text, ))
-            #print(f"Controller: Start playing in thd={play_thd.name}")
-            #play_thd.start()
+            # print(f"Controller: Play audio for text={response_text}")
+            # play_thd = threading.Thread(self.sip_call.play_tts, args=(response_text, ))
+            # print(f"Controller: Start playing in thd={play_thd.name}")
+            # play_thd.start()
 
         else:
             print(f"Controller: No active call to play audio.")
-
 
     def push_message(self, message):
         url = "https://api.pushover.net/1/messages.json"
@@ -339,7 +338,6 @@ class Controller:
         }
         response = requests.post(url, data=data)
         return response
-
 
     def destroy(self):
         # Allow garbage collection to delete this instance

@@ -1,0 +1,8 @@
+
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/hhatto/autopep8
+    rev: v2.3.2 # select the tag or revision you want, or run `pre-commit autoupdate`
+    hooks:
+      - id: autopep8
+

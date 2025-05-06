@@ -3,8 +3,8 @@
 import os
 
 # pushover credential
-PUSH_USER_KEY=os.getenv("PUSH_USER_KEY", "123456789")
-PUSH_API_TOKEN=os.getenv("PUSH_API_TOKEN", "123456789")
+PUSH_USER_KEY = os.getenv("PUSH_USER_KEY", "123456789")
+PUSH_API_TOKEN = os.getenv("PUSH_API_TOKEN", "123456789")
 
 # server with SIP (raspberry Pi)
 SIP_DOMAIN = os.getenv("SIP_DOMAIN", "192.168.10.3")
@@ -32,16 +32,16 @@ LANGUAGE = "PL"
 PIPER_EXECUTABLE = os.getenv("PIPER_EXECUTABLE", "/data/programs/piper/piper")
 # Voices to download: https://github.com/rhasspy/piper/blob/master/VOICES.md
 # PIPER_MODEL_PATH = os.getenv("PIPER_MODEL_PATH", "/data/models/piper/en_GB-jenny_dioco-medium.onnx")
-PIPER_MODEL_PATH = os.getenv("PIPER_MODEL_PATH", "/data/models/piper/pl_PL-gosia-medium.onnx")
+PIPER_MODEL_PATH = os.getenv(
+    "PIPER_MODEL_PATH", "/data/models/piper/pl_PL-gosia-medium.onnx")
 
 # ---- STT Vosk
 # Vosk project: https://alphacephei.com/vosk/
 # Models to download: https://alphacephei.com/vosk/models
 # Lightweight model for Polish
-VOSK_MODEL_PATH = os.getenv("VOSK_MODEL_PATH", "/data/models/vosk/vosk-model-small-pl-0.22")
+VOSK_MODEL_PATH = os.getenv(
+    "VOSK_MODEL_PATH", "/data/models/vosk/vosk-model-small-pl-0.22")
 # Big US English model with dynamic graph
 # VOSK_MODEL_PATH = os.getenv("VOSK_MODEL_PATH", "/data/models/vosk/vosk-model-en-us-0.22-lgraph")
 #  	Lightweight wideband model for Android and RPi
 # VOSK_MODEL_PATH = os.getenv("VOSK_MODEL_PATH", "/data/models/vosk/vosk-model-small-en-us-0.15")
-
-

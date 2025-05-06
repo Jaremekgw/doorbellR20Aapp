@@ -1,5 +1,6 @@
 # tts.py
 
+import pyaudio
 import os
 import time
 import wave
@@ -14,9 +15,10 @@ import pjsua2 as pj
 # Must be set BEFORE importing pyaudio or opening the stream
 os.environ["PULSE_PROP_application.name"] = "PiperTTS"
 os.environ["PULSE_PROP_media.name"] = "Piper TTS Playback"
-import pyaudio
 
 active = False
+
+
 class PiperTTS:
     def __init__(self, pa_manager, model_path="/path/to/model.onnx"):
         """
@@ -82,8 +84,6 @@ class PiperTTS:
         else:
             print("PiperTTS: Already stopped.")
 
-
-
     def play_tts(self, tts_text):
         # Generate and play TTS message
         if not self.audio_active:
@@ -96,7 +96,7 @@ class PiperTTS:
         if not wav_file:
             print(f"[ERROR] TTS generation failed; skipping playback.")
             return
-        
+
         try:
             # Get the duration of the audio file
             with wave.open(wav_file, 'rb') as wf:
@@ -106,8 +106,8 @@ class PiperTTS:
 
             time_generate_wav = time.time() - time_begin
 
-            #if not globals.pj_ep.libIsThreadRegistered():
-                # print(f"play_tts: Register thd=({threading.current_thread().name}) -----------------")
+            # if not globals.pj_ep.libIsThreadRegistered():
+            # print(f"play_tts: Register thd=({threading.current_thread().name}) -----------------")
             globals.pj_ep.libRegisterThread("dynamic_tts")
 
             # Create AudioMediaPlayer and stream the WAV into the call
@@ -122,8 +122,8 @@ class PiperTTS:
         except wave.Error as we:
             print(f"[Exception] Wave error while reading WAV file: {we}")
         except Exception as e:
-            print(f"[Exception] Unexpected error while playing TTS response: {e}")
-
+            print(
+                f"[Exception] Unexpected error while playing TTS response: {e}")
 
     def generate_tts_wav(self, text):
         """
