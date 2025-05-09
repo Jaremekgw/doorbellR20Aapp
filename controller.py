@@ -7,12 +7,15 @@ import logging
 
 from config import *
 from synonims import *
+from logger_config import get_logger
 
 # ✅  🎙️ 🧹  ⏳ ⚠️ ❌ 🔵 🔴 🔊 ⚠️ Warning 📝
 
 # You can integrate hardware control (e.g., GPIO pins) by uncommenting
 # and implementing the 'LampController' class from prepared 'hardware_control.py' module:
 # from hardware_control import LampController
+
+logger = get_logger(__name__)
 
 
 class Lamp:
@@ -64,12 +67,12 @@ class Controller:
         elif LANGUAGE == "EN":
             response_text = "Hello, how can I help you?"
         else:
-            print(" ❌ Controller: ERROR: No language defined")
+            logger.error(" ❌ Controller: ERROR: No language defined")
             return
         self.play_response(response_text)
 
     def onNewCallX(self, call):
-        print(f"Controller stores call handler.")
+        logger.info(f"Controller stores call handler.")
         # self.current_call = call
 
     def receive_command(self, command):
@@ -80,7 +83,7 @@ class Controller:
             command (str): The command to process.
         """
         if not self.connected:
-            print(f"Controller: Not connected. command:{command}")
+            logger.info(f"Controller: Not connected. command:{command}")
             return
 
         if len(self.message) == 0:
@@ -88,52 +91,52 @@ class Controller:
         else:
             self.message = self.message + " # " + command
 
-        print(f"Controller: ✅ received: '{command}'")
+        logger.info(f"Controller: ✅ received: '{command}'")
         # Parse the command and decide what action to take
         if LANGUAGE == "PL":
             self.reasoning_pl(command)
         elif LANGUAGE == "EN":
             self.reasoning_en(command)
         else:
-            print(" ❌ Controller: ERROR: No language defined")
+            logger.info(" ❌ Controller: ERROR: No language defined")
 
     def reasoning_pl(self, command):
         command_tokens = set(command.lower().split())  # crude tokenization
 
         """
-        print(f"=== Tokens: {command_tokens}")
+        logger.info(f"=== Tokens: {command_tokens}")
         if command_tokens & TURN_ON_SYNS:
-            print(f"----- Token: TURN_ON_SYNS")
+            logger.info(f"----- Token: TURN_ON_SYNS")
         if command_tokens & TURN_OFF_SYNS:
-            print(f"----- Token: TURN_OFF_SYNS")
+            logger.info(f"----- Token: TURN_OFF_SYNS")
         if command_tokens & HANGUP_SYNS:
-            print(f"----- Token: HANGUP_SYNS")
+            logger.info(f"----- Token: HANGUP_SYNS")
         if command_tokens & LIGHT_SYNS:
-            print(f"----- Token: LIGHT_SYNS")
+            logger.info(f"----- Token: LIGHT_SYNS")
         if command_tokens & COURIER_SYNS:
-            print(f"----- Token: COURIER_SYNS")
+            logger.info(f"----- Token: COURIER_SYNS")
         if command_tokens & PACK_SYNS:
-            print(f"----- Token: PACK_SYNS")
+            logger.info(f"----- Token: PACK_SYNS")
         if command_tokens & BRING_SYNS:
-            print(f"----- Token: BRING_SYNS")
+            logger.info(f"----- Token: BRING_SYNS")
         if command_tokens & CONFIRM_SYNS:
-            print(f"----- Token: CONFIRM_SYNS")
+            logger.info(f"----- Token: CONFIRM_SYNS")
         if command_tokens & GUESTS_SYNS:
-            print(f"----- Token: GUESTS_SYNS")
+            logger.info(f"----- Token: GUESTS_SYNS")
         if command_tokens & ON_SYNS:
-            print(f"----- Token: ON_SYNS")
+            logger.info(f"----- Token: ON_SYNS")
         if command_tokens & VIS1_SYNS:
-            print(f"----- Token: VIS1_SYNS")
+            logger.info(f"----- Token: VIS1_SYNS")
         if command_tokens & VIS2_SYNS:
-            print(f"----- Token: VIS2_SYNS")
+            logger.info(f"----- Token: VIS2_SYNS")
         if command_tokens & PARTY_SYNS:
-            print(f"----- Token: PARTY_SYNS")
+            logger.info(f"----- Token: PARTY_SYNS")
         if command_tokens & VISIT_SYNS:
-            print(f"----- Token: VISIT_SYNS")
+            logger.info(f"----- Token: VISIT_SYNS")
         if command_tokens & POSTMAN_SYNS:
-            print(f"----- Token: POSTMAN_SYNS")
+            logger.info(f"----- Token: POSTMAN_SYNS")
         if command_tokens & LETTER_SYNS:
-            print(f"----- Token: LETTER_SYNS")
+            logger.info(f"----- Token: LETTER_SYNS")
         """
 
         # command "zapal światło"
@@ -218,11 +221,11 @@ class Controller:
         """
         Handle the command to turn on the lamp.
         """
-        print("Controller: Handling command: Turn on the lamp.")
+        logger.info("Controller: Handling command: Turn on the lamp.")
         # Execute the task (e.g., switch on the lamp)
         # self.lamp.turn_on()
         # For demonstration, we'll simulate the task
-        # print("Lamp turned on.")  # Replace with actual hardware control
+        # logger.info("Lamp turned on.")  # Replace with actual hardware control
 
         # Generate and play TTS response
         response_text = "The lamp has been turned on."
@@ -232,11 +235,11 @@ class Controller:
         """
         Handle the command to turn off the lamp.
         """
-        print("Controller: Handling command: Turn off the lamp.")
+        logger.info("Controller: Handling command: Turn off the lamp.")
         # Execute the task (e.g., switch off the lamp)
         # self.lamp.turn_off()
         # For demonstration, we'll simulate the task
-        # print("Lamp turned off.")  # Replace with actual hardware control
+        # logger.info("Lamp turned off.")  # Replace with actual hardware control
 
         # Generate and play TTS response
         response_text = "The lamp has been turned off."
@@ -245,7 +248,7 @@ class Controller:
         """
     def handle_unknown_command(self):
         # Handle unknown or unsupported commands.
-        print("Controller: Handling unknown command.")
+        logger.info("Controller: Handling unknown command.")
         response_text = "I'm sorry, I didn't understand that command."
         self.play_tts_response(response_text)
         """
@@ -290,14 +293,14 @@ class Controller:
             )
 
             if response.status_code == 200:
-                # print("Door command sent successfully!")
-                # print("Response:", response.text)
+                # logger.info("Door command sent successfully!")
+                # logger.info("Response:", response.text)
                 return True
             else:
-                # print(f"HTTP {response.status_code} Error:", response.text)
+                # logger.info(f"HTTP {response.status_code} Error:", response.text)
                 return False
         except requests.RequestException as e:
-            print("Error during request:", e)
+            logger.error("Error during request:", e)
             return False
 
     def doorbell_relay(self, relay_no):
@@ -312,22 +315,24 @@ class Controller:
                 door_num=str(relay_no)  # "1" = Relay A
             )
         else:
-            print(f" ❌ Controller: ERROR: Wrong relay number={relay_no}")
+            logger.error(
+                f" ❌ Controller: ERROR: Wrong relay number={relay_no}")
 
     def play_response(self, response_text):
         # Play the TTS response using SIP handler
         if not self.connected:
-            print(f"Controller: Not connected. Cant play:{response_text}")
+            logger.info(
+                f"Controller: Not connected. Cant play:{response_text}")
             return
         if self.sip_call:
             self.sip_call.capturePiperText(response_text)
-            # print(f"Controller: Play audio for text={response_text}")
+            # logger.info(f"Controller: Play audio for text={response_text}")
             # play_thd = threading.Thread(self.sip_call.play_tts, args=(response_text, ))
-            # print(f"Controller: Start playing in thd={play_thd.name}")
+            # logger.info(f"Controller: Start playing in thd={play_thd.name}")
             # play_thd.start()
 
         else:
-            print(f"Controller: No active call to play audio.")
+            logger.error(f"Controller: No active call to play audio.")
 
     def push_message(self, message):
         url = "https://api.pushover.net/1/messages.json"

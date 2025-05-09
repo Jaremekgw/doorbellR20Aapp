@@ -2,6 +2,8 @@ import subprocess
 import time
 import re
 
+from logger_config import get_logger
+
 """
     Manages PulseAudio Virtual Devices for Vosk STT and Piper TTS.
     - for now only Vosk is used
@@ -21,6 +23,7 @@ import re
     for debug: switch on: '❌ Could not find' '⏳ Waiting for PJSUA2'
         
 """
+logger = get_logger(__name__)
 
 VIRT_DEV_VOSK_SINK_NAME = "VoskSink"
 VIRT_DEV_PIPER_SINK_NAME = "PiperSink"
@@ -113,14 +116,14 @@ class PulseAudioVirtualDevices:
         if lines:
             sink_id = int(re.search(r'\d+', lines[0]).group())
 
-        print(
+        logger.info(
             f">>>> PulseAudio: ✅ virtual device: Name:{sink_name}  Module:{module_id} Sink:{sink_id}")
         return module_id, sink_id
 
     def remove_module(self, id):
         """Removes the Virtual module with id."""
         subprocess.run(["pactl", "unload-module", str(id)])
-        print(f"🧹 Removed Virtual module (ID: {id})")
+        logger.info(f"🧹 Removed Virtual module (ID: {id})")
 
     def cleanup(self):
         """Removes all virtual devices on exit."""
@@ -136,7 +139,7 @@ class PulseAudioVirtualDevices:
         for line in result.stdout.splitlines():
             if sink_name in line and "monitor" in line:
                 return line.split("\t")[0]  # Get the monitor source name
-        # print(f"❌ Could not find VirtualSink monitor for {sink_name}")
+        # logger.info(f"❌ Could not find VirtualSink monitor for {sink_name}")
         return None
 
     def get_piper_sink(self):
@@ -146,7 +149,7 @@ class PulseAudioVirtualDevices:
         for line in result.stdout.splitlines():
             if self.piper_source_name in line:
                 return line.split("\t")[0]  # Get the sink name
-        # print(f"❌ Could not find VirtualSink for {self.piper_source_name}")
+        # logger.info(f"❌ Could not find VirtualSink for {self.piper_source_name}")
         return None
 
     def redirect_play_sink_input(self, play_sink_id):
@@ -157,7 +160,7 @@ class PulseAudioVirtualDevices:
             (vosk)sip_handler.py:178:     result = globals.pulse_audio.redirect_play_sink_input(globals.pulse_audio.vosk.sink_id)
         """
         if play_sink_id != self.vosk.sink_id and play_sink_id != self.piper.sink_id:
-            print(
+            logger.info(
                 f"❌ Wrong sink id #{play_sink_id} for redirect playback! (Vosk#{self.vosk.sink_id} Piper#{self.piper.sink_id})")
             return False
 
@@ -166,15 +169,15 @@ class PulseAudioVirtualDevices:
         sin_module_id, sin_sink_id = self.find_playback_sink_input()
 
         if sin_module_id is None or sin_sink_id is None:
-            # print("❌ Could not find PJSUA2(sink-input) stream in PulseAudio!")
+            # logger.info("❌ Could not find PJSUA2(sink-input) stream in PulseAudio!")
             return False
 
         if sin_sink_id == play_sink_id:
             # no need to move-sink-input
-            # print(f">>>> RedirectSin: ✅ sink-input already set,  ID:{sin_module_id}  sink:{sin_sink_id}")
+            # logger.info(f">>>> RedirectSin: ✅ sink-input already set,  ID:{sin_module_id}  sink:{sin_sink_id}")
             return True
 
-        # print(f">>>> RedirectSin: ✅ move-sink-input,  ID:{sin_module_id}  from:{sin_sink_id}  sink:{play_sink_id}")
+        # logger.info(f">>>> RedirectSin: ✅ move-sink-input,  ID:{sin_module_id}  from:{sin_sink_id}  sink:{play_sink_id}")
         cmd = f"pactl move-sink-input {sin_module_id} {play_sink_id}"
         subprocess.run(cmd, shell=True)
         return True
@@ -187,7 +190,7 @@ class PulseAudioVirtualDevices:
             vosk_stt.py:50:         result = self.pa_manager.redirect_cap_source_output(self.pa_manager.vosk_sink_id)
         """
         if capture_sink_id != self.vosk.sink_id and capture_sink_id != self.piper.sink_id:
-            print("❌ Wrong sink id for redirect capture!")
+            logger.info("❌ Wrong sink id for redirect capture!")
             return False
 
         # brak rozroznienia czy to dla Vosk czy Piper
@@ -195,15 +198,16 @@ class PulseAudioVirtualDevices:
         src_module_id, src_sink_id = self.find_capture_source_output()
 
         if src_module_id is None or src_sink_id is None:
-            print("❌ Could not find VOSK(source-output) stream in PulseAudio!")
+            logger.info(
+                "❌ Could not find VOSK(source-output) stream in PulseAudio!")
             return False
 
         if src_sink_id == capture_sink_id:
             # no need to move-sink-input
-            # print(f">>>> RedirectSrc: ✅ source-output already set,  ID:{src_module_id}  sink:{src_sink_id}")
+            # logger.info(f">>>> RedirectSrc: ✅ source-output already set,  ID:{src_module_id}  sink:{src_sink_id}")
             return True
 
-        # print(f">>>> RedirectSrc: ✅ move-source-output,  ID:{src_module_id}  from:{src_sink_id}  sink:{capture_sink_id}")
+        # logger.info(f">>>> RedirectSrc: ✅ move-source-output,  ID:{src_module_id}  from:{src_sink_id}  sink:{capture_sink_id}")
         cmd = f"pactl move-source-output {src_module_id} {capture_sink_id}"
         subprocess.run(cmd, shell=True)
         return True
@@ -248,13 +252,14 @@ class PulseAudioVirtualDevices:
         #    (vosk)sip_handler.py:178:     result = globals.pulse_audio.redirect_play_sink_input(globals.pulse_audio.vosk.sink_id)
 
         for _ in range(3):      # Retry loop to wait for the sink-input to appear
-            print(f"------   check interfaces sink-inputs   ------ wait  0s100ms")
+            logger.info(
+                f"------   check interfaces sink-inputs   ------ wait  0s100ms")
             time.sleep(0.1)     # Wait for playback to start
             result = subprocess.run(
                 ["pactl", "list", "sink-inputs"], capture_output=True, text=True)
             lines = result.stdout.splitlines()
 
-            print(f"  [find_playback_sink_input] -->>")
+            logger.info(f"  [find_playback_sink_input] -->>")
             potential_id = None
             potential_sink = None
             line1 = None
@@ -271,16 +276,16 @@ class PulseAudioVirtualDevices:
                     potential_sink = int(re.search(r'\d+', line).group())
 
                 elif "remote.name" in line and device_name in line:
-                    print(f"    {line1}")
-                    print(f"    {line2}")
-                    print(f"    {line}")
+                    logger.info(f"    {line1}")
+                    logger.info(f"    {line2}")
+                    logger.info(f"    {line}")
 
                     cnt = self.swich.sin_cnt
                     if cnt > 0:
                         if cnt == 1 and self.swich.sin_mod_id[0] != potential_id:
                             self.swich.sin_mod_id[cnt] = potential_id
                             self.swich.sin_sink_id[cnt] = potential_sink
-                            print(
+                            logger.info(
                                 f">>>> SwitchSin: ✅ added:{cnt}  mod:{potential_id}  sink:{potential_sink}")
                             self.swich.sin_cnt = cnt + 1
                             sink_input_id = potential_id  # ✅ Found the correct sink-input
@@ -288,7 +293,7 @@ class PulseAudioVirtualDevices:
                     else:
                         self.swich.sin_mod_id[cnt] = potential_id
                         self.swich.sin_sink_id[cnt] = potential_sink
-                        print(
+                        logger.info(
                             f">>>> SwitchSin: ✅ added:{cnt}  mod:{potential_id}  sink:{potential_sink}")
                         self.swich.sin_cnt = cnt + 1
                         sink_input_id = potential_id  # ✅ Found the correct sink-input
@@ -302,13 +307,13 @@ class PulseAudioVirtualDevices:
 
             if sink_input_id and sink_id:
                 break
-            # print("⏳ Waiting for PJSUA2 to create a sink-input...")
+            # logger.info("⏳ Waiting for PJSUA2 to create a sink-input...")
 
         if sink_input_id is None or sink_id is None:
-            # print("❌ Could not find PJSUA2 stream in PulseAudio!")
+            # logger.error("❌ Could not find PJSUA2 stream in PulseAudio!")
             return None, None
 
-        print(
+        logger.info(
             f" ✅ find_playback_sink_input: return ID:{sink_input_id}  sink_id:{sink_id}")
         return sink_input_id, sink_id
 
@@ -323,7 +328,8 @@ class PulseAudioVirtualDevices:
 
         for _ in range(3):      # Retry loop to wait for the sink-input to appear
 
-            print(f"------   check interfaces source-outputs   ------ wait  0s100ms")
+            logger.info(
+                f"------   check interfaces source-outputs   ------ wait  0s100ms")
             time.sleep(0.1)     # Wait for playback to start
             cmd = f"pactl list source-outputs"
             # result = subprocess.run(["pactl", "list", "sink-inputs"], capture_output=True, text=True)
@@ -337,7 +343,7 @@ class PulseAudioVirtualDevices:
             line1 = None
             line2 = None
 
-            # print(f"  [find_capture_source_output] -->>")
+            # logger.info(f"  [find_capture_source_output] -->>")
 
             for i, line in enumerate(lines):
                 if "Source Output" in line:
@@ -350,23 +356,23 @@ class PulseAudioVirtualDevices:
                     potential_source = int(re.search(r'\d+', line).group())
 
                 elif "remote.name" in line and device_name in line:
-                    # print(f"    {line1}")
-                    # print(f"    {line2}")
-                    # print(f"    {line}")
+                    # logger.info(f"    {line1}")
+                    # logger.info(f"    {line2}")
+                    # logger.info(f"    {line}")
 
                     cnt = self.swich.src_cnt
                     if cnt > 0:
                         if cnt == 1 and self.swich.src_mod_id[0] != potential_id:
                             self.swich.src_mod_id[cnt] = potential_id
                             self.swich.src_sink_id[cnt] = potential_source
-                            # print(f">>>> SwitchSrc: ✅ added:{cnt}  mod:{potential_id}  source:{potential_source}")
+                            # logger.info(f">>>> SwitchSrc: ✅ added:{cnt}  mod:{potential_id}  source:{potential_source}")
                             self.swich.src_cnt = cnt + 1
                             source_output_id = potential_id  # ✅ Found the correct sink-input
                             source_id = potential_source
                     else:
                         self.swich.src_mod_id[cnt] = potential_id
                         self.swich.src_sink_id[cnt] = potential_source
-                        # print(f">>>> SwitchSrc: ✅ added:{cnt}  mod:{potential_id}  source:{potential_source}")
+                        # logger.info(f">>>> SwitchSrc: ✅ added:{cnt}  mod:{potential_id}  source:{potential_source}")
                         self.swich.src_cnt = cnt + 1
                         source_output_id = potential_id  # ✅ Found the correct sink-input
                         source_id = potential_source
@@ -379,12 +385,12 @@ class PulseAudioVirtualDevices:
 
             if source_output_id and source_id:
                 break
-            # print("⏳ Waiting for Capture device to create a source-output...")
+            # logger.info("⏳ Waiting for Capture device to create a source-output...")
 
         if source_output_id is None or source_id is None:
-            print("❌ Could not find Capture stream in PulseAudio!")
+            logger.error("❌ Could not find Capture stream in PulseAudio!")
             return
-        # print(f" ✅ find_capture_source_output: return ID:{source_output_id}  source_id:{source_id}")
+        # logger.info(f" ✅ find_capture_source_output: return ID:{source_output_id}  source_id:{source_id}")
         return source_output_id, source_id
 
 

@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
-from config import *
 import requests
+
+from config import *
+from logger_config import get_logger
 
 """
     Commands from console:
@@ -13,6 +15,8 @@ import requests
         $ curl -k -v "https://192.168.178.133/fcgi/do?action=OpenDoor&UserName=relay&Password=akuvox_221&DoorNum=1"
 
 """
+
+logger = get_logger(__name__)
 
 
 def open_door(ip, port, scheme, username, password, door_num="1"):
@@ -52,14 +56,14 @@ def open_door(ip, port, scheme, username, password, door_num="1"):
         )
 
         if response.status_code == 200:
-            print("Door command sent successfully!")
-            print("Response:", response.text)
+            logger.info("Door command sent successfully!")
+            logger.info("Response:", response.text)
             return True
         else:
-            print(f"HTTP {response.status_code} Error:", response.text)
+            logger.error(f"HTTP {response.status_code} Error:", response.text)
             return False
     except requests.RequestException as e:
-        print("Error during request:", e)
+        logger.error("Error during request:", e)
         return False
 
 

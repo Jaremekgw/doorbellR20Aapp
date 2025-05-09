@@ -2,13 +2,15 @@
 
 import pjsua2 as pj
 import threading
-from cleanup import cleanup_wav
 import time
+import queue
 import globals   # Import the globals module
+
+from cleanup import cleanup_wav
 from controller import Controller  # Import Controller if needed
 from config import VOSK_MODEL_PATH
 from my_logger import logging, logger_thd
-import queue
+from logger_config import get_logger
 
 # Create a thread-safe queue for inter-thread communication
 event_queue = queue.Queue()
@@ -21,6 +23,8 @@ event_queue = queue.Queue()
     logging.info(f"rUri={ci.remoteUri} state={ci.state}  stateText={ci.stateText} remAudioCount={ci.remAudioCount} remVideoCount={ci.remVideoCount}")
 
 """
+
+logger = get_logger(__name__)
 
 
 class SIPReceiver:
@@ -60,11 +64,11 @@ class SIPReceiver:
         # video will be available after compiling with  --with-openh264
         videoCodecs = ep.videoCodecEnum2()
 
-        print("[INFO] Available codecs:")
+        logger.info("Available codecs:")
         for audioC in audioCodecs:
-            print(f"Audio  - {audioC.codecId}  - \t{audioC.desc}")
+            logger.info(f"Audio  - {audioC.codecId}  - \t{audioC.desc}")
         for videoC in videoCodecs:
-            print(f"Video  - {videoC.codecId}")
+            logger.info(f"Video  - {videoC.codecId}")
 
         # Enable only commonly used codecs
         # allowed_codecs = ["G722/16000/1", "PCMU/8000/1", "PCMA/8000/1"]
@@ -75,15 +79,15 @@ class SIPReceiver:
         #    else:
         #        ep.codecSetPriority(codec.codecId, 0)  # Disable other codecs
 
-        # print("[INFO] Configured supported codecs.")
+        # logger.info("Configured supported codecs.")
 
     def shutdown(self):
         if not globals.pj_ep.libIsThreadRegistered():
-            print(
+            logger.info(
                 f"Shutting down SIP Receiver... thread_name={threading.current_thread().name} Registered ---")
             globals.pj_ep.libRegisterThread("main_shutdown")
         else:
-            print(
+            logger.info(
                 f"Shutting down SIP Receiver... thread_name={threading.current_thread().name}")
         self.ep.libDestroy()
 
@@ -105,7 +109,7 @@ class MyCall(pj.Call):
 
     def onCallState(self, prm):
         ci = self.getInfo()
-        print(f" [sip:MyCall] onCallState state={ci.stateText}")
+        logger.info(f" [sip:MyCall] onCallState state={ci.stateText}")
         if "CONFIRMED" in ci.stateText and not self.connected:
             self.connected = True
             self.controller.start()  # self.capturePiperText, self.hangupCall)
@@ -114,43 +118,44 @@ class MyCall(pj.Call):
             # Clean up all players
 
             # if globals.stt_app:
-            #    print(f"MyCall: 🔴  stop Vosk blocked.")
+            #    logger.info(f"MyCall: 🔴  stop Vosk blocked.")
             #    # globals.stt_app.stop()
 
             # object has no attribute 'event_connected'
             self.event_connected.clear()
 
-            print(f"Clean all players.")
+            logger.info(f"Clean all players.")
             for player in self.players:
                 try:
                     player.stopTransmit(self.getAudioMedia(-1))
                 except Exception as e:
-                    print(f"Error stopping player: {e}")
+                    logger.error(f"Error stopping player: {e}")
             self.players = []
 
             if self.controller:
-                print(f"Destroy controller.")
+                logger.info(f"Destroy controller.")
                 self.controller.destroy()
             else:
-                print(f"When disconnecting the controller already destroyed.")
+                logger.info(
+                    f"When disconnecting the controller already destroyed.")
 
             # Unregister call from MyAccount
             # if self.controller and hasattr(self.controller.sip_handler, "calls"):
             #    if ci.id in self.controller.sip_handler.calls:
             #        del self.controller.sip_handler.calls[ci.id]
-            #        print(f"[INFO] Removed call ID {ci.id} from active calls.")
+            #        info.logger(f"[INFO] Removed call ID {ci.id} from active calls.")
 
             # Allow garbage collection to delete this instance
-            print(f"Destroy Call instance.")
+            logger.info(f"Destroy Call instance.")
             time.sleep(0.5)
             del self
 
     def onCallMediaState(self, prm):
-        print(f" [sip:MyCall] onCallMediaState: ----")
+        logger.info(f"onCallMediaState: ----")
         ci = self.getInfo()
         # Loop through each media stream in the call.
         for i, mi in enumerate(ci.media):
-            print(
+            logger.info(
                 f"[INFO][Call.onCallMediaState] media.type={mi.type} media.status={mi.status}")
             # Check if this media stream is audio.
             if hasattr(mi, 'type') and mi.type == pj.PJMEDIA_TYPE_AUDIO:
@@ -190,7 +195,7 @@ class MyCall(pj.Call):
                             result = globals.pulse_audio.redirect_play_sink_input(
                                 globals.pulse_audio.vosk.sink_id)
                             if not result:
-                                print(
+                                logger.error(
                                     "❌ Could not find PJSUA2 stream for vosk in PulseAudio!")
                                 return
 
@@ -206,38 +211,38 @@ class MyCall(pj.Call):
                         self.audio_active = True
                         # set timeout for connection
                         hang_thd = threading.Timer(120, self.hangupCall)
-                        # print(f"Start delayed hangup (5sec) in thd={hang_thd.name}")
+                        # logger.info(f"Start delayed hangup (5sec) in thd={hang_thd.name}")
                         hang_thd.start()
 
                     except Exception as e:
-                        print(
+                        logger.error(
                             f"onCallMediaState: Error setting up TTS playback: {e}")
 
     def playbackVoskText(self, text):
         if self.controller:
             self.controller.receive_command(text)
         else:
-            print(f"MyCall: ERROR: Not defined controller.")
+            logger.error(f"Not defined controller.")
 
     def capturePiperText(self, text):
         if globals.tts_app:
             globals.tts_app.speak(text)
         else:
-            print(f"MyCall: ERROR: Not defined globals.tts_app.")
+            logger.info(f"Not defined globals.tts_app.")
 
     def hangupCall(self):
-        # print(f" [sip:MyCall] hangupCall: started. - curThd={threading.current_thread().name}")
+        # logger.info(f" [sip:MyCall] hangupCall: started. - curThd={threading.current_thread().name}")
         if self.hangup_scheduled:
-            print(f"hangupCall alrady scheduled.")
+            logger.info(f"hangupCall alrady scheduled.")
             return
 
         self.hangup_scheduled = True
-        # print(f"MyCall: 🔴 start hangupCall")
+        # logger.info(f"MyCall: 🔴 start hangupCall")
 
         try:
             # Check if pj_ep is set
             if globals.pj_ep is None:
-                print(
+                logger.info(
                     f"[WARNING] Global endpoint is not set. Cannot register thread. - curThd={threading.current_thread().name}")
                 return
 
@@ -246,9 +251,9 @@ class MyCall(pj.Call):
 
             # Check if call is already terminated
             ci = self.getInfo()
-            # print(f"hangupCall current ci.state={ci.state}")
+            # logger.info(f"hangupCall current ci.state={ci.state}")
             if ci.state == pj.PJSIP_INV_STATE_DISCONNECTED:
-                print(
+                logger.info(
                     f"[WARNING] Attempted to hang up a call that's already disconnected.")
                 return
 
@@ -258,19 +263,19 @@ class MyCall(pj.Call):
             # if self.controller and hasattr(self.controller.sip_handler, "calls"):
             #    if ci.id in self.controller.sip_handler.calls:
             #        del self.controller.sip_handler.calls[ci.id]
-            #        print(f"[INFO] Removed call ID {ci.id} before hangup.")
+            #        logger.info(f"[INFO] Removed call ID {ci.id} before hangup.")
 
-            # print(f"hangupCall: Hanging up the call...")
+            # logger.info(f"hangupCall: Hanging up the call...")
 
             op = pj.CallOpParam()
             op.statusCode = 200  # Using a valid response code for hangup.
             self.hangup(op)
-            # print(f"hangupCall: Call hangup successful.")
+            # logger.info(f"hangupCall: Call hangup successful.")
 
         except pj.Error as pj_err:
-            print(f"[ERROR] PJSUA2 Error during hangup: {pj_err}")
+            logger.error(f"PJSUA2 Error during hangup: {pj_err}")
         except Exception as e:
-            print(f"Error: during hangup: {e}")
+            logger.error(f"Error: during hangup: {e}")
 
 
 class MyAccount(pj.Account):
@@ -280,7 +285,7 @@ class MyAccount(pj.Account):
         self.event_connected = sip_event_connected
 
     def onIncomingCall(self, prm):
-        # print(f" [sip:MyAccount] onIncomingCall: rdataInfo={prm.rdata.info}  callId={prm.callId}")
+        # logger.info(f" [sip:MyAccount] onIncomingCall: rdataInfo={prm.rdata.info}  callId={prm.callId}")
 
         call = MyCall(self.event_connected, self, prm.callId)
 
@@ -295,4 +300,4 @@ class MyAccount(pj.Account):
         call_prm = pj.CallOpParam()
         call_prm.statusCode = 200
         call.answer(call_prm)
-        # print(f"Answered incoming call with ID {prm.callId}. Active calls: {len(self.calls)}")
+        # logger.info(f"Answered incoming call with ID {prm.callId}. Active calls: {len(self.calls)}")

@@ -10,6 +10,7 @@ from pa_virt import PulseAudioVirtualDevices
 from vosk_stt import VoskSTT
 from piper_tts import PiperTTS
 from config import *
+from logger_config import get_logger, setup_queue_listener, log_queue
 
 import globals
 
@@ -22,35 +23,42 @@ import globals
     - Piper TTS (Text To Stream)
 """
 
+logger = get_logger(__name__)
+_listener = None
+
 
 def main():
     # Create a multiprocessing Event sip connection for face recognition control
     sip_event_connected = multiprocessing.Event()
     sip_event_connected.clear()
 
-    print("-----------  Init Face Recognition  -------------------")
+    # Set up the QueueListener in the main process
+    _listener = setup_queue_listener(
+        log_queue, logging_file_path='log/main_doorbell.log')
+
+    # logger.info("-----------  Init Face Recognition  -------------------")
     # Start `main_face.py` as a separate process
-    print("🚀 Starting Face Recognition Process...")
+    logger.info("🚀 Starting Face Recognition Process...")
     face_recognition_process = multiprocessing.Process(
         target=start_face_recognition_process, args=(sip_event_connected,))
     face_recognition_process.start()
 
     # Create and initialize all objects we need
     globals.pulse_audio = PulseAudioVirtualDevices()
-    print("-----------  Init VoskSTT  -------------------")
+    # logger.info("-----------  Init VoskSTT  -------------------")
     vosk_app = VoskSTT(VOSK_MODEL_PATH, globals.pulse_audio)
-    print("-----------  Start VoskSTT  -------------------")
+    logger.info("-----------  Start VoskSTT  -------------------")
     vosk_app.start()  # move to sip_handler after connected (some issue after moving it)
     globals.stt_app = vosk_app
-    # print("-----------  Init PiperTTS  -------------------")
+    # logger.info("-----------  Init PiperTTS  -------------------")
     piper_app = PiperTTS(globals.pulse_audio, PIPER_MODEL_PATH)
     # piper_app.start()
     globals.tts_app = piper_app
-    print("-----------  Init SIPReceiver  -------------------")
+    # logger.info("-----------  Init SIPReceiver  -------------------")
     receiver = SIPReceiver(sip_event_connected, SIP_DOMAIN,
                            SIP_USER, SIP_PASS, LISTEN_PORT)
 
-    print("SIP Receiver is running. Press Ctrl+C or send SIGTERM to quit.")
+    logger.info("SIP Receiver is running. Press Ctrl+C or send SIGTERM to quit.")
 
     # Single function to shut everything down gracefully
     def do_shutdown():
@@ -59,7 +67,7 @@ def main():
             return
         do_shutdown._has_run = True
 
-        print("Shutting down gracefully...")
+        logger.info("Shutting down gracefully...")
 
         # Disable face recognition
         sip_event_connected.clear()
@@ -82,7 +90,7 @@ def main():
 
     # Handle signals (SIGINT, SIGTERM) by calling do_shutdown()
     def signal_handler(sig, frame):
-        print(f"Received shutdown signal ({sig}). Exiting gracefully...")
+        logger.info(f"Received shutdown signal ({sig}). Exiting gracefully...")
         do_shutdown()
         sys.exit(0)
 
@@ -95,9 +103,9 @@ def main():
             time.sleep(1)
 
     except KeyboardInterrupt:
-        print("Exiting by KeyboardInterrupt...")
+        logger.info("Exiting by KeyboardInterrupt...")
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        logger.error(f"Unexpected error: {e}")
     finally:
         # Ensure all objects are shut down regardless of how we exit
         do_shutdown()

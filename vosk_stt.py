@@ -1,9 +1,13 @@
 import pyaudio
 import threading
 import sys
+import json
+
 from vosk import Model, KaldiRecognizer
 from config import VOSK_MODEL_PATH
-import json
+from logger_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class VoskSTT:
@@ -20,7 +24,7 @@ class VoskSTT:
         self.p = pyaudio.PyAudio()
         self.running = False
         self.callback = None
-        print(f"Vosk: ✅ initialized")
+        logger.info(f"Vosk: ✅ initialized")
 
     def set_callback(self, callback):
         self.callback = callback
@@ -40,10 +44,10 @@ class VoskSTT:
                 break
 
         if hw_id is None:
-            print("❌ No HW audio device (pipewire) found. Exiting...")
+            logger.info("❌ No HW audio device (pipewire) found. Exiting...")
             return
 
-        print(f"Vosk: 🎙️ start model on device id: {hw_id}")
+        logger.info(f"Vosk: 🎙️ start model on device id: {hw_id}")
         self.stream = self.p.open(format=pyaudio.paInt16,
                                   channels=1,
                                   rate=16000,
@@ -55,15 +59,17 @@ class VoskSTT:
         result = self.pa_manager.redirect_cap_source_output(
             self.pa_manager.vosk.sink_id)
         if not result:
-            print("❌ Could not find VOSK(source-output) stream in PulseAudio!")
+            logger.info(
+                "❌ Could not find VOSK(source-output) stream in PulseAudio!")
             return
 
         self.running = True
         # Start the audio processing thread
         self.thread = threading.Thread(target=self.run)
-        print(f"Vosk: ✅ initialize thread: {threading.current_thread().name}")
+        logger.info(
+            f"Vosk: ✅ initialize thread: {threading.current_thread().name}")
         self.thread.start()
-        print("Vosk: 🎙️ Listening...!")
+        logger.info("Vosk: 🎙️ Listening...!")
 
     def run(self):
         while self.running:
@@ -72,19 +78,19 @@ class VoskSTT:
                 if self.recognizer.AcceptWaveform(data):
                     result = json.loads(self.recognizer.Result())
                     if "text" in result and result["text"].strip() != "":
-                        # print(f"Recognized Text: {result['text']}")
+                        # (logger.infof"Recognized Text: {result['text']}")
                         if self.callback:
                             self.callback(result["text"])
                 # else:
                 #    partial = self.recognizer.PartialResult()
 
             except Exception as e:
-                print(f"Error reading stream: {e}")
+                logger.error(f"Error reading stream: {e}")
                 continue
 
     def stop(self):
         """Stops the STT processing."""
-        print(f"VoskSST: stop  running={self.running}")
+        logger.info(f"VoskSST: stop  running={self.running}")
         self.callback = None
         if self.running:
             self.running = False
@@ -93,6 +99,6 @@ class VoskSTT:
                 self.stream.close()
             self.p.terminate()
             self.thread.join()
-            print(f"VoskSST: 🔴 STT stopped.")
+            logger.info(f"VoskSST: 🔴 STT stopped.")
         else:
-            print(f"VoskSST: 🔴 STT already stopped.")
+            logger.info(f"VoskSST: 🔴 STT already stopped.")

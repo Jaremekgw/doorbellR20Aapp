@@ -11,12 +11,14 @@ import globals
 
 from config import PIPER_EXECUTABLE
 import pjsua2 as pj
+from logger_config import get_logger
 
 # Must be set BEFORE importing pyaudio or opening the stream
 os.environ["PULSE_PROP_application.name"] = "PiperTTS"
 os.environ["PULSE_PROP_media.name"] = "Piper TTS Playback"
 
 active = False
+logger = get_logger(__name__)
 
 
 class PiperTTS:
@@ -40,13 +42,13 @@ class PiperTTS:
         self.stream_out = None
         self.running = False
 
-        print("PiperTTS: ✅ initialized")
+        logger.info("PiperTTS: ✅ initialized")
 
     def start(self, audio_media):
         if self.audio_med:
-            print("PiperTTS: Already started.")
+            logger.info("PiperTTS: Already started.")
             return
-        print("PiperTTS: started.")
+        logger.info("PiperTTS: started.")
         self.audio_med = audio_media
 
     def speak(self, text):
@@ -55,17 +57,17 @@ class PiperTTS:
         Also perform sink redirection after the stream is open.
         """
         if self.audio_med is None:
-            print("PiperTTS: Not started.")
+            logger.info("PiperTTS: Not started.")
             return
 
         self.audio_active = True
         # play_thd = threading.Timer(0.2, self.play_tts, args=(text,))
         play_thd = threading.Thread(target=self.play_tts, args=(text,))
-        # print(f"Start TTS play in thread={play_thd.name}")
+        # logger.info(f"Start TTS play in thread={play_thd.name}")
         self.running = True
         play_thd.start()
 
-        # print("PiperTTS: 🔵 TTS stream started and ready to speak.")
+        # logger.info("PiperTTS: 🔵 TTS stream started and ready to speak.")
 
     def stop(self):
         """
@@ -80,21 +82,21 @@ class PiperTTS:
                 self.stream_out = None
 
             self.p.terminate()
-            print("PiperTTS: 🔴 TTS stopped.")
+            logger.info("PiperTTS: 🔴 TTS stopped.")
         else:
-            print("PiperTTS: Already stopped.")
+            logger.info("PiperTTS: Already stopped.")
 
     def play_tts(self, tts_text):
         # Generate and play TTS message
         if not self.audio_active:
-            print(f"[WARNING] Try to play TTS without active audio.")
+            logger.info(f"[WARNING] Try to play TTS without active audio.")
             return
 
-        print(f"PiperTTS:  🔊 play: '{tts_text}'")
+        logger.info(f"PiperTTS:  🔊 play: '{tts_text}'")
         time_begin = time.time()
         wav_file = self.generate_tts_wav(tts_text)
         if not wav_file:
-            print(f"[ERROR] TTS generation failed; skipping playback.")
+            logger.info(f"[ERROR] TTS generation failed; skipping playback.")
             return
 
         try:
@@ -107,7 +109,7 @@ class PiperTTS:
             time_generate_wav = time.time() - time_begin
 
             # if not globals.pj_ep.libIsThreadRegistered():
-            # print(f"play_tts: Register thd=({threading.current_thread().name}) -----------------")
+            # logger.info(f"play_tts: Register thd=({threading.current_thread().name}) -----------------")
             globals.pj_ep.libRegisterThread("dynamic_tts")
 
             # Create AudioMediaPlayer and stream the WAV into the call
@@ -116,13 +118,14 @@ class PiperTTS:
             player.startTransmit(self.audio_med)
             self.players.append(player)
 
-            # print(f"play_tts: Playing file={wav_file}, "
+            # logger.info(f"play_tts: Playing file={wav_file}, "
             #       f"gen_time={time_generate_wav:.2f}s, duration={duration:.2f}s")
 
         except wave.Error as we:
-            print(f"[Exception] Wave error while reading WAV file: {we}")
+            logger.error(
+                f"[Exception] Wave error while reading WAV file: {we}")
         except Exception as e:
-            print(
+            logger.error(
                 f"[Exception] Unexpected error while playing TTS response: {e}")
 
     def generate_tts_wav(self, text):
@@ -137,7 +140,7 @@ class PiperTTS:
 
             print instead of  logging.info  logging.error
         """
-        # print(f"Called method: generate_tts_wav(text={text}) curThd={threading.current_thread().name}")
+        # logger.info(f"Called method: generate_tts_wav(text={text}) curThd={threading.current_thread().name}")
 
         # Audio parameters
         sample_rate = 22050  # Hz         this setting is expected, don't change it
@@ -159,7 +162,7 @@ class PiperTTS:
                 "--output-raw"
             ]
 
-            # print(f"Generating TTS audio for text: '{text}'")
+            # logger.info(f"Generating TTS audio for text: '{text}'")
             proc = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
@@ -172,7 +175,7 @@ class PiperTTS:
 
             if proc.returncode != 0:
                 error_message = stderr.decode().strip()
-                print(f"Piper error: {error_message}")
+                logger.error(f"Piper error: {error_message}")
                 os.unlink(tmp_wav_path)
                 return None
 
@@ -184,11 +187,11 @@ class PiperTTS:
                 wav_file.writeframes(raw_audio)
 
             # logging.info(f"Generated TTS WAV file: {tmp_wav_path}")
-            # print(f"Finishing method: generate_tts_wav() curThd={threading.current_thread().name}  WAV file: {tmp_wav_path}")
+            # logger.info(f"Finishing method: generate_tts_wav() curThd={threading.current_thread().name}  WAV file: {tmp_wav_path}")
             return tmp_wav_path
 
         except Exception as e:
-            print(f"Error generating TTS file: {e}")
+            logger.error(f"Error generating TTS file: {e}")
             if os.path.exists(tmp_wav_path):
                 os.unlink(tmp_wav_path)
             return None
